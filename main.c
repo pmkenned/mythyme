@@ -232,6 +232,9 @@ task_t * selectPrev(calendar_view_t * cv) {
     return cv->selected_task_node->task;
 }
 
+int last_row_clicked;  // TODO: remove
+int first_row_clicked; // TODO: remove
+
 task_t * selectByRowCol(calendar_view_t * cv, int row, int col) {
     calendar_t * calendar = cv->calendar;
     int rows, cols;
@@ -250,6 +253,10 @@ task_t * selectByRowCol(calendar_view_t * cv, int row, int col) {
         int start_row  = (start_hour*60+start_min)/5 - top_row;
         int end_row    = (end_hour*60+end_min)/5 - top_row - 1; // TODO: deal with rounding
         int width      = 30;
+
+        first_row_clicked = last_row_clicked = 0;   // TODO: this is hideous
+        if(row == start_row) first_row_clicked = 1; // TODO: this is hideous
+        if(row == end_row) last_row_clicked = 1;    // TODO: this is hideous
 
         if((row >= start_row) && (row <= end_row) && (col >= 10) && (col <= 40)) {
             found = 1;
@@ -318,8 +325,54 @@ void shiftUpToPrev(calendar_view_t * cv) {
 void shiftDownToNext(calendar_view_t * cv) {
 }
 
-void swapWithPrev() {}
-void swapWithNext() {}
+void swapWithPrev(calendar_view_t * cv) {
+}
+
+void swapWithNext(calendar_view_t * cv) {
+
+    task_node_t * this = cv->selected_task_node;
+    task_node_t * next = cv->selected_task_node->next;
+
+    if(next == NULL) {
+        return;
+    }
+
+    int this_hours = (this->task->end.tm_hour - this->task->start.tm_hour);
+    int this_mins = (this->task->end.tm_min - this->task->start.tm_min);
+    int this_dur_mins = this_hours*60 + this_mins;
+
+    int next_hours = (next->task->end.tm_hour - next->task->start.tm_hour);
+    int next_mins = (next->task->end.tm_min - next->task->start.tm_min);
+    int next_dur_mins = next_hours*60 + next_mins;
+
+    int this_start_tm_hour_tmp = this->task->start.tm_hour;
+    int this_start_tm_min_tmp = this->task->start.tm_min;
+
+    this->task->end.tm_hour = next->task->end.tm_hour;
+    this->task->end.tm_min  = next->task->end.tm_min;
+    this->task->start.tm_hour = this->task->end.tm_hour - (this_dur_mins/60);
+    this->task->start.tm_min  = this->task->end.tm_min - (this_dur_mins % 60);
+
+    next->task->start.tm_hour = this_start_tm_hour_tmp;
+    next->task->start.tm_min  = this_start_tm_min_tmp;
+    next->task->end.tm_hour   = next->task->start.tm_hour + (next_dur_mins/60);
+    next->task->end.tm_min    = next->task->start.tm_min + (next_dur_mins % 60);
+
+    // swap the nodes in the doubly linked list
+
+    task_node_t * this_prev = this->prev;
+    task_node_t * next_next = next->next;
+
+    this->next = next->next;
+    next->prev = this->prev;
+    this->prev = next;
+    next->next = this;
+
+    if(this_prev != NULL)
+        this_prev->next = next;
+    if(next_next != NULL)
+        next_next->prev = this;
+}
 
 // TODO: this maybe should not be necessary; removing it it would require
 //       that other code not assume that task pointers are contiguous
@@ -408,8 +461,10 @@ void addNewTask(calendar_view_t * cv) {
 
                 newTask->start.tm_hour  =  sel_end_tm->tm_hour;
                 newTask->start.tm_min   =  sel_end_tm->tm_min;
+                newTask->start.tm_sec   =  0;
                 newTask->end.tm_hour    =  sel_end_tm->tm_hour;
                 newTask->end.tm_min     =  sel_end_tm->tm_min + 30; // TODO
+                newTask->end.tm_sec     =  0;
                 newTask->fg_color       = fg;
                 newTask->bg_color       = bg;
 
@@ -597,48 +652,60 @@ int main(int argc, char * argv[])
     ts[0]->description = strdup("First task");
     ts[0]->start.tm_hour  =  16;
     ts[0]->start.tm_min   =   5;
+    ts[0]->start.tm_sec   =   0;
     ts[0]->end.tm_hour    =  16;
     ts[0]->end.tm_min     =  20;
+    ts[0]->end.tm_sec     =   0;
     ts[0]->fg_color       = COLOR_BLACK;
     ts[0]->bg_color       = COLOR_RED;
 
     ts[1]->description = strdup("Second task");
     ts[1]->start.tm_hour  =  16;
     ts[1]->start.tm_min   =  25;
+    ts[1]->start.tm_sec   =   0;
     ts[1]->end.tm_hour    =  16;
     ts[1]->end.tm_min     =  40;
+    ts[1]->end.tm_sec     =   0;
     ts[1]->fg_color       = COLOR_BLACK;
     ts[1]->bg_color       = COLOR_GREEN;
 
     ts[2]->description = strdup("Third task");
     ts[2]->start.tm_hour  =  16;
     ts[2]->start.tm_min   =  45;
+    ts[2]->start.tm_sec   =   0;
     ts[2]->end.tm_hour    =  17;
     ts[2]->end.tm_min     =  30;
+    ts[2]->end.tm_sec     =   0;
     ts[2]->fg_color       = COLOR_BLACK;
     ts[2]->bg_color       = COLOR_YELLOW;
 
     ts[3]->description = strdup("Work");
     ts[3]->start.tm_hour  =   7;
     ts[3]->start.tm_min   =   0;
+    ts[3]->start.tm_sec   =   0;
     ts[3]->end.tm_hour    =  12+3;
     ts[3]->end.tm_min     =  30;
+    ts[3]->end.tm_sec     =   0;
     ts[3]->fg_color       = COLOR_YELLOW;
     ts[3]->bg_color       = COLOR_RED;
 
     ts[4]->description = strdup("Bed");
     ts[4]->start.tm_hour  =  12+9;
     ts[4]->start.tm_min   =   0;
+    ts[4]->start.tm_sec   =   0;
     ts[4]->end.tm_hour    =  23;
     ts[4]->end.tm_min     =  59;
+    ts[4]->end.tm_sec     =   0;
     ts[4]->fg_color       = COLOR_BLACK;
     ts[4]->bg_color       = COLOR_WHITE;
 
     ts[5]->description = strdup("Commute");
     ts[5]->start.tm_hour  =  12+3;
     ts[5]->start.tm_min   =  35;
+    ts[5]->start.tm_sec   =   0;
     ts[5]->end.tm_hour    =  12+4;
     ts[5]->end.tm_min     =   0;
+    ts[5]->end.tm_sec     =   0;
     ts[5]->fg_color       = COLOR_CYAN;
     ts[5]->bg_color       = COLOR_BLUE;
 
@@ -725,11 +792,15 @@ int main(int argc, char * argv[])
     //renderCalendar(&view);
 
 
-    //printf("\033[?1003h\n"); // Makes the terminal report mouse movement events
+    printf("\033[?1003h\n"); // Makes the terminal report mouse movement events
 
     MEVENT event;
     // event.x, event.y
     int mrow, mcol;
+    int leftMouseDown = 0;
+
+    int init_mrow, init_mcol, prev_mrow, prev_mcol;
+    int dragShift = 0, startShift = 0, endShift = 0;
 
     while(!done) {
 
@@ -746,16 +817,48 @@ int main(int argc, char * argv[])
         switch(ch) {
           case KEY_MOUSE:
             if (getmouse(&event) == OK) {
+
+                if(leftMouseDown) {
+                    mcol = event.x;
+                    mrow = event.y;
+                    if(dragShift) {
+                        shiftBy(&view, 5*(mrow - prev_mrow));
+                    }
+                    if(startShift) {
+                        adjustStart(&view, 5*(mrow - prev_mrow));
+                    }
+                    if(endShift) {
+                        adjustEnd(&view, 5*(mrow - prev_mrow));
+                    }
+                    prev_mrow = mrow;
+                }
+
                 if(event.bstate & BUTTON4_PRESSED) {
                     scrollView(&view, -15);
                 }
-                if(event.bstate & BUTTON2_PRESSED) {
+                if(event.bstate & 0x100200000) {
                     scrollView(&view, 15);
                 }
                 if(event.bstate & (BUTTON1_CLICKED | BUTTON1_PRESSED)) {
                     mcol = event.x;
                     mrow = event.y;
                     selectByRowCol(&view, mrow, mcol);
+                    if(first_row_clicked) startShift = 1;
+                    else if(last_row_clicked) endShift = 1;
+                    else dragShift = 1;
+                }
+                if(event.bstate & BUTTON1_PRESSED) {
+                    leftMouseDown = 1;
+                    init_mcol = event.x;
+                    init_mrow = event.y;
+                    prev_mcol = event.x;
+                    prev_mrow = event.y;
+                }
+                if(event.bstate & BUTTON1_RELEASED) {
+                    leftMouseDown = 0;
+                    startShift = 0;
+                    endShift = 0;
+                    dragShift = 0;
                 }
             }
             break;
@@ -808,6 +911,9 @@ int main(int argc, char * argv[])
           case 'k':
             scrollView(&view, -5);
             break;
+          case 'S':
+            swapWithNext(&view);
+            break;
           case '`':
             //selectPrev(&view);
             break;
@@ -829,7 +935,7 @@ int main(int argc, char * argv[])
         renderCalendar(&view);
     }
 
-    //printf("\033[?1003l\n"); // Disable mouse movement events, as l = low
+    printf("\033[?1003l\n"); // Disable mouse movement events, as l = low
 
     endwin();
 
