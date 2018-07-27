@@ -4,6 +4,7 @@
 #include <time.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 // select upcoming task
 // select next task
@@ -121,13 +122,137 @@ void initCalendar(calendar_t * c) {
     c->sorted = false;
 }
 
+void saveToFile(calendar_view_t * cv) {
+
+    FILE * fp = fopen("save.data", "w");
+    size_t i = 0;
+
+    if(fp == NULL) {
+        return;
+    }
+
+    task_node_t * task_node = cv->calendar->head_task;
+    while(task_node != NULL) {
+        time_t start = mktime(&task_node->task->start);
+        time_t end = mktime(&task_node->task->end);
+
+        fprintf(fp, "task %d:\n", i);
+        fprintf(fp, "description: %s\n", task_node->task->description);
+        fprintf(fp, "start: %ld\n", start);
+        fprintf(fp, "end: %ld\n", end);
+        fprintf(fp, "fg: %d\n", task_node->task->fg_color);
+        fprintf(fp, "bg: %d\n", task_node->task->bg_color);
+        fprintf(fp, "\n");
+
+        task_node = task_node->next;
+        i++;
+    }
+
+}
+
+task_t * allocTask(calendar_t * c);
+void addTask(calendar_t * c, task_t * t);
+void printCalendar(calendar_t * c);
+
+void loadFromFile(calendar_view_t * cv) {
+    FILE * fp = fopen("save.data", "r");
+    calendar_t * c = cv->calendar;
+    char buffer[512];
+    int reading_task = 0;
+
+    char * desc;
+    time_t start, end;
+    int fg, bg;
+
+    if(fp == NULL) {
+        return;
+    }
+
+    while( fgets(buffer, 512, fp) != NULL) {
+        //fprintf(stdout, "%s", buffer);
+        if(!reading_task && (strncmp(buffer, "task ", 5) == 0)) {
+            reading_task = 1;
+            continue;
+        }
+        if(reading_task && (strncmp(buffer, "\n", 1) == 0)) { // blank line
+
+
+            task_t * newTask = allocTask(c);
+            newTask->active = 1;
+            newTask->start.tm_year  = 118;
+            newTask->start.tm_mon   =   1;
+            newTask->start.tm_wday  =   3;
+            newTask->start.tm_mday  =  21;
+            newTask->start.tm_yday  =  51;
+            newTask->start.tm_isdst =   0;
+            newTask->end.tm_year    = 118;
+            newTask->end.tm_mon     =   1;
+            newTask->end.tm_wday    =   3;
+            newTask->end.tm_mday    =  21;
+            newTask->end.tm_yday    =  51;
+            newTask->end.tm_isdst   =   0;
+
+            newTask->description = desc;
+
+            struct tm * start_tm = localtime(&start);
+            newTask->start.tm_hour  =  start_tm->tm_hour;
+            newTask->start.tm_min   =  start_tm->tm_min;
+            newTask->start.tm_sec   =   0;
+
+            struct tm * end_tm = localtime(&end);
+            newTask->end.tm_hour    =  end_tm->tm_hour;
+            newTask->end.tm_min     =  end_tm->tm_min;
+            newTask->end.tm_sec     =   0;
+
+            newTask->fg_color       = fg;
+            newTask->bg_color       = bg;
+
+            //fprintf(stdout, "description: %s\t", desc);
+            //fprintf(stdout, "start: %d\t", start);
+            //fprintf(stdout, "end: %d\t", end);
+            //fprintf(stdout, "fg: %d\t", fg);
+            //fprintf(stdout, "bg: %d\n", bg );
+
+            addTask(c, newTask);
+
+            reading_task = 0;
+            continue;
+        }
+
+        if(strncmp(buffer, "description: ", 13) == 0) {
+            desc = strdup(buffer+13);
+            size_t l = strlen(desc);
+            desc[l-1] = '\0';
+        }
+        if(strncmp(buffer, "start: ", 7) == 0) {
+            start = atoi(buffer+7);
+        }
+        if(strncmp(buffer, "end: ", 5) == 0) {
+            end = atoi(buffer+5);
+        }
+        if(strncmp(buffer, "fg: ", 4) == 0) {
+            fg = atoi(buffer+4);
+        }
+        if(strncmp(buffer, "bg: ", 4) == 0) {
+            bg = atoi(buffer+4);
+        }
+    }
+    printCalendar(c);
+    printf("===\n\n\n");
+}
+
 task_t * allocTask(calendar_t * c) {
     task_t ** newTask = NULL;
 
     c->num_tasks++;
     if(c->num_tasks >= c->tasks_cap) {
+        size_t prev_cap = c->tasks_cap;
+        size_t i;
         c->tasks_cap *= 2;
         c->tasks = realloc(c->tasks, sizeof(*c->tasks) * c->tasks_cap);
+        for(i=prev_cap; i < c->tasks_cap; i++) {
+            c->tasks[i] = NULL;
+        }
     }
 
     newTask = &(c->tasks[c->num_tasks - 1]);
@@ -178,40 +303,43 @@ void addTask(calendar_t * c, task_t * t) {
         new_node->next = NULL;
     }
     else {
-      task_node_t * prev = node->prev;
-      if(prev == NULL) {  // insert at head
-          new_node->prev = NULL;
-          c->head_task = new_node;
-      }
-      else {              // insert elsewhere
-          prev->next = new_node;
-          new_node->prev = prev;
-      }
-      new_node->next = node;
-      node->prev = new_node;
+        task_node_t * prev = node->prev;
+        if(prev == NULL) {  // insert at head
+            new_node->prev = NULL;
+            c->head_task = new_node;
+        }
+        else {              // insert elsewhere
+            prev->next = new_node;
+            new_node->prev = prev;
+        }
+        new_node->next = node;
+        node->prev = new_node;
     }
 
 }
 
 task_t * selectFirst(calendar_view_t * cv) {
     // TODO: if calendar tasks are sorted, do a binary search
-//    size_t i;
-//    task_t * first_task = cv->calendar->tasks[0];
-//    time_t first_time = mktime(&first_task->start);
-//    for(i=1; i < cv->calendar->num_tasks; i++) {
-//        task_t * task = cv->calendar->tasks[i];
-//        // check to see if task starts today
-//        time_t task_time = mktime(&task->start);
-//        double dt = difftime(task_time, first_time);
-//        if(dt < 0) {
-//            first_task = task;
-//            first_time = task_time;
-//        }
-//    }
-//    cv->selected_task_node = NULL; // TODO
-// TODO: check for null pointers
+    //    size_t i;
+    //    task_t * first_task = cv->calendar->tasks[0];
+    //    time_t first_time = mktime(&first_task->start);
+    //    for(i=1; i < cv->calendar->num_tasks; i++) {
+    //        task_t * task = cv->calendar->tasks[i];
+    //        // check to see if task starts today
+    //        time_t task_time = mktime(&task->start);
+    //        double dt = difftime(task_time, first_time);
+    //        if(dt < 0) {
+    //            first_task = task;
+    //            first_time = task_time;
+    //        }
+    //    }
+    //    cv->selected_task_node = NULL; // TODO
+    // TODO: check for null pointers
+    task_t * task = NULL;
     cv->selected_task_node = cv->calendar->head_task;
-    return cv->selected_task_node->task;
+    if(cv->selected_task_node != NULL)
+        task = cv->selected_task_node->task;
+    return task;
 }
 
 task_t * selectUpcoming(calendar_view_t * cv) {
@@ -374,6 +502,26 @@ void swapWithNext(calendar_view_t * cv) {
         next_next->prev = this;
 }
 
+void renameTask(calendar_view_t * cv, const char * new_description) {
+    free(cv->selected_task_node->task->description);
+    cv->selected_task_node->task->description = strdup(new_description);
+}
+
+void cycleColor(calendar_view_t * cv) {
+
+    int fg, bg;
+
+    while(1) {
+        fg = rand() % 8;
+        bg = rand() % 8;
+        if(good_colors[fg][bg] && bg != COLOR_BLACK)
+            break;
+    }
+
+    cv->selected_task_node->task->fg_color = fg;
+    cv->selected_task_node->task->bg_color = bg;
+}
+
 // TODO: this maybe should not be necessary; removing it it would require
 //       that other code not assume that task pointers are contiguous
 void makeTaskPointersContiguous(calendar_t * c) {
@@ -437,10 +585,10 @@ void addNewTask(calendar_view_t * cv) {
                 int fg, bg;
                 int sel_bg = cv->selected_task_node->task->bg_color;
                 while(1) {
-                  fg = rand() % 8;
-                  bg = rand() % 8;
-                  if(good_colors[fg][bg] && (bg != sel_bg) && bg != COLOR_BLACK)
-                      break;
+                    fg = rand() % 8;
+                    bg = rand() % 8;
+                    if(good_colors[fg][bg] && (bg != sel_bg) && bg != COLOR_BLACK)
+                        break;
                 }
 
                 newTask->description = strdup("New task");
@@ -472,10 +620,6 @@ void addNewTask(calendar_view_t * cv) {
             }
         }
     }
-
-
-    // allocTask
-    // addTask
 }
 
 void printCalendar(calendar_t * c) {
@@ -567,17 +711,17 @@ void renderCalendar(calendar_view_t * cv) {
             move(r, 10);
             for(j=0; j < 30; j++) {
                 if(task_is_sel) {
-                  if(r == start_row) {
-                    if(j==0)         { waddch(stdscr, ACS_ULCORNER); }
-                    else if(j == 29) { waddch(stdscr, ACS_URCORNER); }
-                    else             { waddch(stdscr, ' ');          }
-                  }
-                  else if(r == end_row) {
-                    if(j==0)         { waddch(stdscr, ACS_LLCORNER); }
-                    else if(j == 29) { waddch(stdscr, ACS_LRCORNER); }
-                    else             { waddch(stdscr, ' ');          }
-                  }
-                  else { waddch(stdscr, ' '); }
+                    if(r == start_row) {
+                        if(j==0)         { waddch(stdscr, ACS_ULCORNER); }
+                        else if(j == 29) { waddch(stdscr, ACS_URCORNER); }
+                        else             { waddch(stdscr, ' ');          }
+                    }
+                    else if(r == end_row) {
+                        if(j==0)         { waddch(stdscr, ACS_LLCORNER); }
+                        else if(j == 29) { waddch(stdscr, ACS_LRCORNER); }
+                        else             { waddch(stdscr, ' ');          }
+                    }
+                    else { waddch(stdscr, ' '); }
                 }
                 else { waddch(stdscr, ' '); }
             }
@@ -597,42 +741,15 @@ void renderCalendar(calendar_view_t * cv) {
     refresh();
 }
 
-int main(int argc, char * argv[])
-{
-    int ch;
-    int done = 0;
-    size_t i, j;
-    int r;
-    int rows, cols;
+void sampleCalendar(calendar_t * c) {
 
+    size_t i;
     task_t * ts[10];
 
-    calendar_t calendar;
-    calendar_view_t view;
-
-    view.calendar = &calendar;
-    view.granularity = 5;
-    view.selected_task_node = NULL;
-    view.hold_start = 0;
-    view.hold_end = 0;
-    view.top.tm_hour = 15;
-    view.top.tm_min = 0;
-
-    time_t rawtime;
-    struct tm * timeinfo;
-
-    time ( &rawtime );
-    timeinfo = localtime ( &rawtime );
-
-    //    printf ( "Current local time and date: %s", asctime (timeinfo) );
-
-    initCalendar(&calendar);
-
     for(i=0; i < 6; i++) {
-        ts[i] = allocTask(&calendar);
+        ts[i] = allocTask(c);
         ts[i]->active = 1;
     }
-
 
     for(i=0; i < 6; i++) {
         ts[i]->start.tm_year  = 118;
@@ -710,14 +827,51 @@ int main(int argc, char * argv[])
     ts[5]->bg_color       = COLOR_BLUE;
 
     for(i=0; i < 6; i++) {
-        addTask(&calendar, ts[i]);
+        addTask(c, ts[i]);
     }
 
-    view.selected_task_node = calendar.head_task;
-
-    for(i=0; i < calendar.num_tasks; i++) {
+    for(i=0; i < c->num_tasks; i++) {
         printf("ts[%d]: %p\n", i, ts[i]);
     }
+}
+
+int main(int argc, char * argv[])
+{
+    int ch;
+    int done = 0;
+    size_t i, j;
+    int r;
+    int rows, cols;
+
+    int load = 1;
+
+    calendar_t calendar;
+    calendar_view_t view;
+
+    view.calendar = &calendar;
+    view.granularity = 5;
+    view.selected_task_node = NULL;
+    view.hold_start = 0;
+    view.hold_end = 0;
+    view.top.tm_hour = 15;
+    view.top.tm_min = 0;
+
+    //time_t rawtime;
+    //struct tm * timeinfo;
+    //time ( &rawtime );
+    //timeinfo = localtime ( &rawtime );
+    //printf ( "Current local time and date: %s", asctime (timeinfo) );
+
+    initCalendar(&calendar);
+
+    if(load) {
+        loadFromFile(&view);
+    }
+    else {
+        sampleCalendar(&calendar);
+    }
+
+    //view.selected_task_node = calendar.head_task;
 
     task_node_t * node = calendar.head_task;
     for(i=0; i < calendar.num_tasks; i++) {
@@ -730,8 +884,6 @@ int main(int argc, char * argv[])
 
     task_t * first_task = selectFirst(&view);
 
-    //printf("selectFirst: %p\n", first_task);
-
     selectUpcoming(&view);
 
     // printCalendar(&calendar);
@@ -740,11 +892,8 @@ int main(int argc, char * argv[])
     raw();
     keypad(stdscr, TRUE);
     noecho();
-
     curs_set(0); // hides the cursor
-
     mouseinterval(0); // TODO: make sure this is right
-
     mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
 
     if(has_colors() == FALSE) {
@@ -762,173 +911,188 @@ int main(int argc, char * argv[])
         }
     }
 
-    renderCalendar(&view);
-
-    //adjustStart(&view, 5);    // start selected task n minutes earlier
-    //adjustStart(&view, -10);  // start selected task n minutes later 
-    //adjustEnd(&view, -5);     // end selected task n minutes earlier 
-    //adjustEnd(&view, 10);     // end selected task n minutes later 
-
-    //// printCalendar(&calendar);
-
-    //shiftBy(-5);        // shift selected task 5 minutes earlier
-    //shiftBy(5);         // shift selected task 5 minutes later
-
-    //adjustToTime();     // expand selected task to current time (either direction)
-    //expandUp();         // expand selected task task up to previous boundary
-    //expandDown();       // expand selected task down up to next boundary
-
-    //shiftUpToPrev();    // shift selected task up to previous
-    //shiftDownToNext();  // shift selected task down to next
-
-    //swapWithPrev();     // swap selected task with previous
-    //swapWithNext();     // swap selected task with next
-
-    //deleteTask();       // delete selected task
-    //newTask();          // add new task at soonest unallocated time
-
-    //getch();
-
-    //renderCalendar(&view);
-
-
     printf("\033[?1003h\n"); // Makes the terminal report mouse movement events
 
+    renderCalendar(&view);
+
     MEVENT event;
-    // event.x, event.y
     int mrow, mcol;
     int leftMouseDown = 0;
 
     int init_mrow, init_mcol, prev_mrow, prev_mcol;
     int dragShift = 0, startShift = 0, endShift = 0;
 
+    int renamingTask = 0;
+    //char buffer[512];
+    size_t buf_idx = 0;
+
     while(!done) {
+
+        if(renamingTask) {
+
+            buf_idx = 0;
+            free(view.selected_task_node->task->description);
+            view.selected_task_node->task->description = calloc(512, sizeof(char));
+            char * description = view.selected_task_node->task->description;
+            renderCalendar(&view);
+
+            // TODO: determine row and col to move cursor to
+            //curs_set(1); // Terminal-specific high visibility mode
+            //move(50,50);
+
+            while((ch = wgetch(stdscr)) != '\n') {
+                if(isprint(ch) || (ch == ' ')) {
+                    description[buf_idx] = ch;
+                    //buffer[buf_idx] = ch;
+                    buf_idx++;
+                }
+                renderCalendar(&view);
+                //move(50,50);
+            }
+            description[buf_idx] = '\0';
+            //buffer[buf_idx] = '\0';
+            //renameTask(&view, buffer);
+            renamingTask = 0;
+        }
 
         ch = wgetch(stdscr);
         const char * kn = keyname(ch);
 
-        if(ch == '^') {
-            ch = ' ';
-        }
         if(kn[0] == '^') {
-            ch = '^';
+            ch = '\0';
         }
 
         switch(ch) {
-          case KEY_MOUSE:
-            if (getmouse(&event) == OK) {
+            case KEY_MOUSE:
+                if (getmouse(&event) == OK) {
 
-                if(leftMouseDown) {
-                    mcol = event.x;
-                    mrow = event.y;
-                    if(dragShift) {
-                        shiftBy(&view, 5*(mrow - prev_mrow));
+                    if(leftMouseDown) {
+                        mcol = event.x;
+                        mrow = event.y;
+                        if(dragShift) {
+                            shiftBy(&view, 5*(mrow - prev_mrow));
+                        }
+                        if(startShift) {
+                            adjustStart(&view, 5*(mrow - prev_mrow));
+                        }
+                        if(endShift) {
+                            adjustEnd(&view, 5*(mrow - prev_mrow));
+                        }
+                        prev_mrow = mrow;
                     }
-                    if(startShift) {
-                        adjustStart(&view, 5*(mrow - prev_mrow));
-                    }
-                    if(endShift) {
-                        adjustEnd(&view, 5*(mrow - prev_mrow));
-                    }
-                    prev_mrow = mrow;
-                }
 
-                if(event.bstate & BUTTON4_PRESSED) {
-                    scrollView(&view, -15);
+                    if(event.bstate & BUTTON4_PRESSED) {
+                        scrollView(&view, -15);
+                    }
+                    if(event.bstate & 0x100200000) {
+                        scrollView(&view, 15);
+                    }
+                    if(event.bstate & (BUTTON1_CLICKED | BUTTON1_PRESSED)) {
+                        mcol = event.x;
+                        mrow = event.y;
+                        selectByRowCol(&view, mrow, mcol);
+                        if(first_row_clicked) startShift = 1;
+                        else if(last_row_clicked) endShift = 1;
+                        else dragShift = 1;
+                    }
+                    if(event.bstate & BUTTON1_PRESSED) {
+                        leftMouseDown = 1;
+                        init_mcol = event.x;
+                        init_mrow = event.y;
+                        prev_mcol = event.x;
+                        prev_mrow = event.y;
+                    }
+                    if(event.bstate & BUTTON1_RELEASED) {
+                        leftMouseDown = 0;
+                        startShift = 0;
+                        endShift = 0;
+                        dragShift = 0;
+                    }
                 }
-                if(event.bstate & 0x100200000) {
-                    scrollView(&view, 15);
+                break;
+            case KEY_UP:
+                shiftBy(&view, -5);
+                break;
+            case KEY_DOWN:
+                shiftBy(&view, 5);
+                break;
+            case KEY_LEFT:
+                selectPrev(&view);
+                //view.hold_start = !view.hold_start;
+                break;
+            case KEY_RIGHT:
+                selectNext(&view);
+                //view.hold_end = !view.hold_end;
+                break;
+            case KEY_HOME:
+                //expandUp();
+                break;
+            case KEY_END:
+                //expandDown();
+                break;
+            case KEY_DC:
+                deleteTask(&view);
+                break;
+            case KEY_PPAGE:
+                scrollView(&view, -60);
+                break;
+            case KEY_NPAGE:
+                scrollView(&view, 60);
+                break;
+            case '\0': // check kn[1]
+                if(kn[1] == 'U') {
+                    expandUp(&view);
                 }
-                if(event.bstate & (BUTTON1_CLICKED | BUTTON1_PRESSED)) {
-                    mcol = event.x;
-                    mrow = event.y;
-                    selectByRowCol(&view, mrow, mcol);
-                    if(first_row_clicked) startShift = 1;
-                    else if(last_row_clicked) endShift = 1;
-                    else dragShift = 1;
+                else if(kn[1] == 'D') {
+                    expandDown(&view);
                 }
-                if(event.bstate & BUTTON1_PRESSED) {
-                    leftMouseDown = 1;
-                    init_mcol = event.x;
-                    init_mrow = event.y;
-                    prev_mcol = event.x;
-                    prev_mrow = event.y;
+                else if(kn[1] == 'J') {
+                    //swapWithNext(&view);
+                    renamingTask = 1;
                 }
-                if(event.bstate & BUTTON1_RELEASED) {
-                    leftMouseDown = 0;
-                    startShift = 0;
-                    endShift = 0;
-                    dragShift = 0;
-                }
-            }
-            break;
-          case KEY_UP:
-            shiftBy(&view, -5);
-            break;
-          case KEY_DOWN:
-            shiftBy(&view, 5);
-            break;
-          case KEY_LEFT:
-            selectPrev(&view);
-            //view.hold_start = !view.hold_start;
-            break;
-          case KEY_RIGHT:
-            selectNext(&view);
-            //view.hold_end = !view.hold_end;
-            break;
-          case KEY_HOME:
-            //expandUp();
-            break;
-          case KEY_END:
-            //expandDown();
-            break;
-          case KEY_DC:
-            deleteTask(&view);
-            break;
-          case KEY_PPAGE:
-            scrollView(&view, -60);
-            break;
-          case KEY_NPAGE:
-            scrollView(&view, 60);
-            break;
-          case '^': // check kn[1]
-            if(kn[1] == 'U') {
-                expandUp(&view);
-            }
-            else if(kn[1] == 'D') {
-                expandDown(&view);
-            }
-            break;
-          case 'U':
-            shiftUpToPrev(&view);
-            break;
-          case 'D':
-            shiftDownToNext(&view);
-            break;
-          case 'j':
-            scrollView(&view, 5);
-            break;
-          case 'k':
-            scrollView(&view, -5);
-            break;
-          case 'S':
-            swapWithNext(&view);
-            break;
-          case '`':
-            //selectPrev(&view);
-            break;
-          case '\t':
-            //selectNext(&view);
-            break;
-          case 'n':
-            addNewTask(&view);
-            break;
-          case 'q':
-            done = 1;
-            break;
-          default:
-            //printw("Key %d, hopefully printable as %c\n", ch, ch);
-            break;
+                break;
+            case 'U':
+                shiftUpToPrev(&view);
+                break;
+            case 'D':
+                shiftDownToNext(&view);
+                break;
+            case 'j':
+                scrollView(&view, 5);
+                break;
+            case 'k':
+                scrollView(&view, -5);
+                break;
+            case 'S':
+                swapWithNext(&view);
+                break;
+            case 'f':
+                saveToFile(&view);
+                break;
+                //case 'l':
+                //    loadFromFile(&view);
+                //    break;
+            case 'c':
+                cycleColor(&view);
+                break;
+            case '`':
+                //selectPrev(&view);
+                break;
+            case '\n':
+                // NOTE: see ^J
+                break;
+            case '\t':
+                //selectNext(&view);
+                break;
+            case 'n':
+                addNewTask(&view);
+                break;
+            case 'q':
+                done = 1;
+                break;
+            default:
+                //printw("Key %d, hopefully printable as %c\n", ch, ch);
+                break;
         }
 
         werase(stdscr);
