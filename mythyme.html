@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+
+<!--
+TODO:
+* Fix multiple box drag bug
+* Line marking current time
+* Gray out past days
+* Allow user to select events
+* Allow user to create new events
+* Allow user to delete events
+* Allow user to rename events
+* Click-and-drag begin/end times for events
+* Allow user to drag events to other days
+* Enable multiple granularities
+* Create different render modes (day, week, month, etc)
+* Allow user to change event colors
+* Align text in boxes
+* Keyboard event listener
+* Recurring events
+* Save events to file
+* Load events from file
+* Allow user to move ahead or back through time
+
+DONE:
+* Replaced hard-coded box1 with data structure
+-->
+
+<html>
+
+<head>
+<style>
+html, body {
+	margin: 0px;
+	overflow-x: hidden;
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="myCanvas">
+</canvas>
+
+<script src="myevents.js"></script>
+
+<script>
+
+var c = document.getElementById("myCanvas");
+var ctx = c.getContext("2d");
+
+ctx.canvas.width  = window.innerWidth;
+ctx.canvas.height = window.innerHeight-4; // will it always be 4?
+
+var hours = 16;
+var divs = 4;
+
+var tmargin = 30;
+var lmargin = 75;
+
+var vspace = (c.height - tmargin)/(hours*divs);
+var vspace_h = vspace*divs;
+
+var hspace = (c.width - lmargin)/7;
+
+var savedEvents = [];
+var calEvents = [];
+//if(true) {
+if(localStorage.getItem("savedEvents") != null) {
+	savedEvents = JSON.parse(localStorage.getItem("savedEvents"));
+	console.log(calEvents);
+	console.log("loaded.");
+}
+else {
+	console.log('using hard coded');
+	for(var i=0; i < hardEvents.length; i++) {
+		var myE = hardEvents[i];
+		savedEvents.push(myE);
+	}
+}
+
+for(var i=0; i < savedEvents.length; i++) {
+	var myE = savedEvents[i];
+	var newE = {};
+	newE.x = lmargin + myE.x*hspace;
+	newE.y = tmargin + vspace*myE.y;
+	newE.w = hspace-10;
+	newE.h = vspace*myE.h;
+	newE.color = myE.color;
+	newE.text = myE.text;
+	calEvents.push(newE);
+}
+
+function draw() {
+	ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+	ctx.font = "13px Arial";
+	ctx.fillStyle = "#000000";
+	//ctx.fillText("12:00am",10,30);
+	//ctx.fillText("1:00am",10,30+vspace_h);
+	//ctx.fillText("2:00am",10,30+2*vspace_h);
+	//ctx.fillText("3:00am",10,30+3*vspace_h);
+	//ctx.fillText("4:00am",10,30+4*vspace_h);
+	//ctx.fillText("5:00am",10,30+5*vspace_h);
+	ctx.fillText("6:00am", 10, tmargin + 13+ 0*vspace_h);
+	ctx.fillText("7:00am", 10, tmargin + 13+ 1*vspace_h);
+	ctx.fillText("8:00am", 10, tmargin + 13+ 2*vspace_h);
+	ctx.fillText("9:00am", 10, tmargin + 13+ 3*vspace_h);
+	ctx.fillText("10:00am",10, tmargin + 13+ 4*vspace_h);
+	ctx.fillText("11:00am",10, tmargin + 13+ 5*vspace_h);
+	ctx.fillText("12:00pm",10, tmargin + 13+ 6*vspace_h);
+	ctx.fillText("1:00pm", 10, tmargin + 13+ 7*vspace_h);
+	ctx.fillText("2:00pm", 10, tmargin + 13+ 8*vspace_h);
+	ctx.fillText("3:00pm", 10, tmargin + 13+9*vspace_h);
+	ctx.fillText("4:00pm", 10, tmargin + 13+10*vspace_h);
+	ctx.fillText("5:00pm", 10, tmargin + 13+11*vspace_h);
+	ctx.fillText("6:00pm", 10, tmargin + 13+12*vspace_h);
+	ctx.fillText("7:00pm", 10, tmargin + 13+13*vspace_h);
+	ctx.fillText("8:00pm", 10, tmargin + 13+14*vspace_h);
+	ctx.fillText("9:00pm", 10, tmargin + 13+15*vspace_h);
+	//ctx.fillText("10:00pm",10,30+22*vspace_h);
+	//ctx.fillText("11:00pm",10,30+23*vspace_h);
+
+	ctx.font = "25px Arial";
+	ctx.fillText("Sunday",   lmargin+20+0*hspace, 25);
+	ctx.fillText("Monday",   lmargin+20+1*hspace, 25);
+	ctx.fillText("Tuesday",  lmargin+20+2*hspace, 25);
+	ctx.fillText("Wednesday",lmargin+20+3*hspace, 25);
+	ctx.fillText("Thursday", lmargin+20+4*hspace, 25);
+	ctx.fillText("Friday",   lmargin+20+5*hspace, 25);
+	ctx.fillText("Saturday", lmargin+20+6*hspace, 25);
+	
+	// vertical lines
+	for(var i=0; i<7; i++) {
+		ctx.beginPath();
+		var x = lmargin + Math.round(i * hspace)+0.5;
+		ctx.moveTo(x, 0);
+		ctx.lineTo(x, c.height);
+		ctx.lineWidth = 1;
+		ctx.setLineDash([]);
+		ctx.strokeStyle = "#c0c0c0";
+		ctx.stroke();
+	}
+	
+	// dashed lines
+	for(var i=0; i<hours*divs; i++) {
+		ctx.beginPath();
+		var y = tmargin + Math.round(i * vspace)+0.5;
+		ctx.moveTo(0, y);
+		ctx.lineTo(c.width, y);
+		ctx.lineWidth = 1;
+		ctx.setLineDash([3, 1]);
+		ctx.strokeStyle = "#e0e0e0";
+		ctx.stroke();
+		ctx.setLineDash([]);
+	}
+	
+	// full lines
+	for(var i=0; i<hours; i++) {
+		ctx.beginPath();
+		var y = tmargin + Math.round(i * vspace_h)+0.5;
+		ctx.moveTo(0, y);
+		ctx.lineTo(c.width, y);
+		ctx.lineWidth = 1;
+		ctx.strokeStyle = "#c0c0c0";
+		ctx.stroke();
+	}
+
+	// events
+	for(var i=0; i < calEvents.length; i++) {
+		var myE = calEvents[i];
+		ctx.beginPath();
+		ctx.rect(myE.x, myE.y, myE.w, myE.h);
+		
+		var r = Math.round(parseInt(myE.color.substr(1,2), 16) * 0.8);
+		var g = Math.round(parseInt(myE.color.substr(3,2), 16) * 0.8);
+		var b = Math.round(parseInt(myE.color.substr(5,2), 16) * 0.8);
+		var rgb = r.toString(16) + g.toString(16) + b.toString(16);
+		ctx.strokeStyle = "#" + rgb;
+		
+		ctx.lineWidth = 5;
+		ctx.stroke();
+		ctx.fillStyle = myE.color;
+		ctx.fill();
+		// box text
+		ctx.font = "15px Arial";
+		ctx.fillStyle = "#000000";
+		ctx.fillText(myE.text,myE.x+50,myE.y+myE.h/2);
+	}
+}
+
+function diffCoords(event) {
+	var cX = event.clientX;
+	var sX = event.screenX;
+	var cY = event.clientY;
+	var sY = event.screenY;
+	var coords1 = "client - X: " + cX + ", Y coords: " + cY;
+	var coords2 = "screen - X: " + sX + ", Y coords: " + sY;
+	console.log(coords1);
+	console.log(coords2);
+}
+
+function in_box_n(event, n) {
+	var myE = calEvents[n];
+	if((event.clientX >= myE.x) &&
+	   (event.clientX <= myE.x + myE.w) && 
+	   (event.clientY >= myE.y) &&
+	   (event.clientY <= myE.y + myE.h)) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+draw();
+
+var mdx = 0;
+var mdy = 0;
+
+var init_box1_x = 0;
+var init_box1_y = 0;
+
+var dragging_box = [];
+for(var i=0; i < calEvents.length; i++) {
+	dragging_box.push(false);
+}
+
+var mouseDown = 0;
+document.body.onmousedown = function() { 
+  ++mouseDown;
+  //mdx = event.clientX;
+  //mdy = event.clientX;
+}
+document.body.onmouseup = function() {
+  --mouseDown;
+}
+
+function mm(event) {
+
+	for(var i=0; i < calEvents.length; i++) {
+		var box = calEvents[i];
+		if(!dragging_box[i]) {
+			if(mouseDown && in_box_n(event,i)){
+				dragging_box[i] = true;
+				mdx = event.clientX;
+				mdy = event.clientY;
+				init_box1_x = calEvents[i].x;
+				init_box1_y = calEvents[i].y;
+			}
+		} else {
+			if(mouseDown){
+				var new_x = init_box1_x + (event.clientX - mdx);
+				var new_y = init_box1_y + (event.clientY - mdy);
+				//box1_x = new_x;
+				calEvents[i].y = Math.round((new_y-tmargin)/vspace) * vspace + tmargin;
+				savedEvents[i].y = Math.round((new_y-tmargin)/vspace);
+				draw();
+			}
+			else {
+				dragging_box[i] = false;
+			}
+		}
+	}
+}
+
+function save() {
+	if (typeof(Storage) == "undefined") {
+		console.log("error: web storage not supported");
+		return;
+	}
+	localStorage.setItem("savedEvents", JSON.stringify(savedEvents));
+	console.log("saved.");
+}
+		
+//document.getElementById("myCanvas").addEventListener("click", function() {foo(event)} );
+
+document.getElementById("myCanvas").addEventListener("mousemove", function() { mm(event); } );
+
+window.addEventListener("resize", function() {console.log("resize");} );
+
+document.getElementById("myCanvas").addEventListener('contextmenu', function(ev) {
+    ev.preventDefault();
+	localStorage.removeItem("savedEvents");
+    console.log('deleted savedEvents');
+    return false;
+}, false);
+
+if (typeof(Storage) !== "undefined") {
+	setInterval(save, 3000);
+}
+
+</script>
+
+</body>
+
+</html>
