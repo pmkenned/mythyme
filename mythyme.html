@@ -59,10 +59,10 @@ html, body {
 var c = document.getElementById("myCanvas");
 var ctx = c.getContext("2d");
 
-//var hours = 16;
-var hours = 7;
-//var divs = 4;
-var divs = 6;
+var hours = 24;
+//var hours = 7;
+var divs = 3;
+//var divs = 6;
 var tmargin = 30;
 var lmargin = 75;
 var vspace = (c.height - tmargin)/(hours*divs);
@@ -125,28 +125,38 @@ function draw() {
 	myResize();
 	ctx.font = "13px Arial";
 	ctx.fillStyle = "#000000";
+
+	var top_hour = 0;
+    for(var i=0; i<hours; i++) {
+        var mhour = (i-1)%12+1;
+        if(i==0) { mhour = 12; }
+        var ampm = (i < 12) ? 'am' : 'pm';
+	    ctx.fillText(mhour + ":00" + ampm, 10, tmargin + 13 + (i-top_hour)*vspace_h);
+    }
+
+
 	//ctx.fillText("12:00am",10,30);
 	//ctx.fillText("1:00am",10,30+vspace_h);
 	//ctx.fillText("2:00am",10,30+2*vspace_h);
 	//ctx.fillText("3:00am",10,30+3*vspace_h);
 	//ctx.fillText("4:00am",10,30+4*vspace_h);
 	//ctx.fillText("5:00am",10,30+5*vspace_h);
-//	ctx.fillText("6:00am", 10, tmargin + 13+ 0*vspace_h);
-//	ctx.fillText("7:00am", 10, tmargin + 13+ 1*vspace_h);
-//	ctx.fillText("8:00am", 10, tmargin + 13+ 2*vspace_h);
-//	ctx.fillText("9:00am", 10, tmargin + 13+ 3*vspace_h);
-//	ctx.fillText("10:00am",10, tmargin + 13+ 4*vspace_h);
-//	ctx.fillText("11:00am",10, tmargin + 13+ 5*vspace_h);
-//	ctx.fillText("12:00pm",10, tmargin + 13+ 6*vspace_h);
-//	ctx.fillText("1:00pm", 10, tmargin + 13+ 7*vspace_h);
-//	ctx.fillText("2:00pm", 10, tmargin + 13+ 8*vspace_h);
-	ctx.fillText("3:00pm", 10, tmargin + 13+(9-9)*vspace_h);
-	ctx.fillText("4:00pm", 10, tmargin + 13+(10-9)*vspace_h);
-	ctx.fillText("5:00pm", 10, tmargin + 13+(11-9)*vspace_h);
-	ctx.fillText("6:00pm", 10, tmargin + 13+(12-9)*vspace_h);
-	ctx.fillText("7:00pm", 10, tmargin + 13+(13-9)*vspace_h);
-	ctx.fillText("8:00pm", 10, tmargin + 13+(14-9)*vspace_h);
-	ctx.fillText("9:00pm", 10, tmargin + 13+(15-9)*vspace_h);
+	//ctx.fillText("6:00am", 10, tmargin + 13+ (6-sh)*vspace_h);
+	//ctx.fillText("7:00am", 10, tmargin + 13+ (7-sh)*vspace_h);
+	//ctx.fillText("8:00am", 10, tmargin + 13+ (8-sh)*vspace_h);
+	//ctx.fillText("9:00am", 10, tmargin + 13+ (9-sh)*vspace_h);
+	//ctx.fillText("10:00am",10, tmargin + 13+(10-sh)*vspace_h);
+	//ctx.fillText("11:00am",10, tmargin + 13+(11-sh)*vspace_h);
+	//ctx.fillText("12:00pm",10, tmargin + 13+(12-sh)*vspace_h);
+	//ctx.fillText("1:00pm", 10, tmargin + 13+(13-sh)*vspace_h);
+	//ctx.fillText("2:00pm", 10, tmargin + 13+(14-sh)*vspace_h);
+	//ctx.fillText("3:00pm", 10, tmargin + 13+(15-sh)*vspace_h);
+	//ctx.fillText("4:00pm", 10, tmargin + 13+(16-sh)*vspace_h);
+	//ctx.fillText("5:00pm", 10, tmargin + 13+(17-sh)*vspace_h);
+	//ctx.fillText("6:00pm", 10, tmargin + 13+(18-sh)*vspace_h);
+	//ctx.fillText("7:00pm", 10, tmargin + 13+(19-sh)*vspace_h);
+	//ctx.fillText("8:00pm", 10, tmargin + 13+(20-sh)*vspace_h);
+	//ctx.fillText("9:00pm", 10, tmargin + 13+(21-sh)*vspace_h);
 	//ctx.fillText("10:00pm",10,30+22*vspace_h);
 	//ctx.fillText("11:00pm",10,30+23*vspace_h);
 
