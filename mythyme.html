@@ -1,28 +1,39 @@
 <!DOCTYPE html>
 
 <!--
-TODO:
-* Fix multiple box drag bug
+TODO (CODE REFACTOR):
+* Separate model & render data
+* Regenerate render data from model data each draw()
+* Make it so that I don't have to invoke draw() everywhere
+
+TODO (FEATURES):
+* Allow user to drag events to other days
+* Associate columns with actual dates
 * Line marking current time
 * Gray out past days
-* Allow user to select events
-* Allow user to create new events
-* Allow user to delete events
-* Allow user to rename events
-* Click-and-drag begin/end times for events
-* Allow user to drag events to other days
+* Scroll up and down
+* Zoom in on specific time window
 * Enable multiple granularities
 * Create different render modes (day, week, month, etc)
 * Allow user to change event colors
 * Align text in boxes
 * Keyboard event listener
 * Recurring events
-* Save events to file
-* Load events from file
 * Allow user to move ahead or back through time
+* Drag and drop to-do items
+* Start week on today (or today-n)
+* Store data in cloud
 
 DONE:
+* Allow user to select events
+* Allow user to delete events
 * Replaced hard-coded box1 with data structure
+* Fix multiple box drag bug
+* Allow user to create new events
+* Allow user to rename events
+* Click-and-drag begin/end times for events
+* Save events to file
+* Load events from file
 -->
 
 <html>
@@ -48,19 +59,29 @@ html, body {
 var c = document.getElementById("myCanvas");
 var ctx = c.getContext("2d");
 
-ctx.canvas.width  = window.innerWidth;
-ctx.canvas.height = window.innerHeight-4; // will it always be 4?
-
-var hours = 16;
-var divs = 4;
-
+//var hours = 16;
+var hours = 7;
+//var divs = 4;
+var divs = 6;
 var tmargin = 30;
 var lmargin = 75;
-
 var vspace = (c.height - tmargin)/(hours*divs);
 var vspace_h = vspace*divs;
-
 var hspace = (c.width - lmargin)/7;
+
+function myResize() {
+	ctx.canvas.width  = window.innerWidth;
+	ctx.canvas.height = window.innerHeight-4; // will it always be 4?
+	vspace = (c.height - tmargin)/(hours*divs);
+	vspace_h = vspace*divs;
+	hspace = (c.width - lmargin)/7;
+}
+
+myResize();
+
+var mmNewE = {}; // used for adding new event
+var mouseDown = 0;
+var down_on_box = -1; // <0 if none
 
 var savedEvents = [];
 var calEvents = [];
@@ -87,11 +108,21 @@ for(var i=0; i < savedEvents.length; i++) {
 	newE.h = vspace*myE.h;
 	newE.color = myE.color;
 	newE.text = myE.text;
+	newE.selected = false;
 	calEvents.push(newE);
+}
+
+function change_brightness(color, per) {
+	var r = Math.round(parseInt(color.substr(1,2), 16) * per);
+	var g = Math.round(parseInt(color.substr(3,2), 16) * per);
+	var b = Math.round(parseInt(color.substr(5,2), 16) * per);
+	var rgb = Math.min(r,255).toString(16) + Math.min(g,255).toString(16) + Math.min(b,255).toString(16);
+	return ("#" + rgb);
 }
 
 function draw() {
 	ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+	myResize();
 	ctx.font = "13px Arial";
 	ctx.fillStyle = "#000000";
 	//ctx.fillText("12:00am",10,30);
@@ -100,22 +131,22 @@ function draw() {
 	//ctx.fillText("3:00am",10,30+3*vspace_h);
 	//ctx.fillText("4:00am",10,30+4*vspace_h);
 	//ctx.fillText("5:00am",10,30+5*vspace_h);
-	ctx.fillText("6:00am", 10, tmargin + 13+ 0*vspace_h);
-	ctx.fillText("7:00am", 10, tmargin + 13+ 1*vspace_h);
-	ctx.fillText("8:00am", 10, tmargin + 13+ 2*vspace_h);
-	ctx.fillText("9:00am", 10, tmargin + 13+ 3*vspace_h);
-	ctx.fillText("10:00am",10, tmargin + 13+ 4*vspace_h);
-	ctx.fillText("11:00am",10, tmargin + 13+ 5*vspace_h);
-	ctx.fillText("12:00pm",10, tmargin + 13+ 6*vspace_h);
-	ctx.fillText("1:00pm", 10, tmargin + 13+ 7*vspace_h);
-	ctx.fillText("2:00pm", 10, tmargin + 13+ 8*vspace_h);
-	ctx.fillText("3:00pm", 10, tmargin + 13+9*vspace_h);
-	ctx.fillText("4:00pm", 10, tmargin + 13+10*vspace_h);
-	ctx.fillText("5:00pm", 10, tmargin + 13+11*vspace_h);
-	ctx.fillText("6:00pm", 10, tmargin + 13+12*vspace_h);
-	ctx.fillText("7:00pm", 10, tmargin + 13+13*vspace_h);
-	ctx.fillText("8:00pm", 10, tmargin + 13+14*vspace_h);
-	ctx.fillText("9:00pm", 10, tmargin + 13+15*vspace_h);
+//	ctx.fillText("6:00am", 10, tmargin + 13+ 0*vspace_h);
+//	ctx.fillText("7:00am", 10, tmargin + 13+ 1*vspace_h);
+//	ctx.fillText("8:00am", 10, tmargin + 13+ 2*vspace_h);
+//	ctx.fillText("9:00am", 10, tmargin + 13+ 3*vspace_h);
+//	ctx.fillText("10:00am",10, tmargin + 13+ 4*vspace_h);
+//	ctx.fillText("11:00am",10, tmargin + 13+ 5*vspace_h);
+//	ctx.fillText("12:00pm",10, tmargin + 13+ 6*vspace_h);
+//	ctx.fillText("1:00pm", 10, tmargin + 13+ 7*vspace_h);
+//	ctx.fillText("2:00pm", 10, tmargin + 13+ 8*vspace_h);
+	ctx.fillText("3:00pm", 10, tmargin + 13+(9-9)*vspace_h);
+	ctx.fillText("4:00pm", 10, tmargin + 13+(10-9)*vspace_h);
+	ctx.fillText("5:00pm", 10, tmargin + 13+(11-9)*vspace_h);
+	ctx.fillText("6:00pm", 10, tmargin + 13+(12-9)*vspace_h);
+	ctx.fillText("7:00pm", 10, tmargin + 13+(13-9)*vspace_h);
+	ctx.fillText("8:00pm", 10, tmargin + 13+(14-9)*vspace_h);
+	ctx.fillText("9:00pm", 10, tmargin + 13+(15-9)*vspace_h);
 	//ctx.fillText("10:00pm",10,30+22*vspace_h);
 	//ctx.fillText("11:00pm",10,30+23*vspace_h);
 
@@ -165,25 +196,30 @@ function draw() {
 	}
 
 	// events
-	for(var i=0; i < calEvents.length; i++) {
-		var myE = calEvents[i];
+	for(var i=0; i <= calEvents.length; i++) {
+		var myE;
+		if(i == calEvents.length) {
+			myE = mmNewE;
+			if(!mouseDown || (down_on_box >= 0) || !moved) {
+				break; // we're not creating a new event, so skip
+			}
+		}
+		else {
+			myE = calEvents[i];
+		}
 		ctx.beginPath();
-		ctx.rect(myE.x, myE.y, myE.w, myE.h);
-		
-		var r = Math.round(parseInt(myE.color.substr(1,2), 16) * 0.8);
-		var g = Math.round(parseInt(myE.color.substr(3,2), 16) * 0.8);
-		var b = Math.round(parseInt(myE.color.substr(5,2), 16) * 0.8);
-		var rgb = r.toString(16) + g.toString(16) + b.toString(16);
-		ctx.strokeStyle = "#" + rgb;
-		
+		ctx.rect(myE.x+3, myE.y+3, myE.w-6, myE.h-6);
+
+		ctx.strokeStyle = change_brightness(myE.color, 0.8);		
 		ctx.lineWidth = 5;
 		ctx.stroke();
-		ctx.fillStyle = myE.color;
+		var per = (myE.selected) ? 1.4 : 1.0;
+		ctx.fillStyle = change_brightness(myE.color, per);
 		ctx.fill();
 		// box text
-		ctx.font = "15px Arial";
+		ctx.font = "13px Arial";
 		ctx.fillStyle = "#000000";
-		ctx.fillText(myE.text,myE.x+50,myE.y+myE.h/2);
+		ctx.fillText(myE.text,myE.x+50,myE.y+myE.h/2+3);
 	}
 }
 
@@ -211,53 +247,171 @@ function in_box_n(event, n) {
 	}
 }
 
+// TODO: define edge size
+function check_on_top_edge(event, n) {
+	var myE = calEvents[n];
+	if((event.clientX >= myE.x) &&
+	   (event.clientX <= myE.x + myE.w) && 
+	   (event.clientY >= myE.y) &&
+	   (event.clientY <= myE.y + 10)) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+// TODO: define edge size
+function check_on_bot_edge(event, n) {
+	var myE = calEvents[n];
+	if((event.clientX >= myE.x) &&
+	   (event.clientX <= myE.x + myE.w) && 
+	   (event.clientY >= myE.y + myE.h - 10) &&
+	   (event.clientY <= myE.y + myE.h)) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+function check_on_text(event, n) {
+	var myE = calEvents[n];
+	if((event.clientX >= myE.x) &&
+	   (event.clientX <= myE.x + myE.w) && 
+	   (event.clientY >= myE.y + myE.h/2 - 10) &&
+	   (event.clientY <= myE.y + myE.h/2+10)) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
 draw();
 
 var mdx = 0;
 var mdy = 0;
 
-var init_box1_x = 0;
-var init_box1_y = 0;
+document.addEventListener('keydown', (event) => {
+	const keyName = event.key;
+	if (keyName === 'Control') {
+		// do not alert when only Control key is pressed.
+		return;
+	}
+	if (event.ctrlKey) {
+		// Even though event.key is not 'Control' (e.g., 'a' is pressed),
+		// event.ctrlKey may be true if Ctrl key is pressed at the same time.
+		console.log(`Combination of ctrlKey + ${keyName}`);
+	} else {
+		console.log(`Key pressed ${keyName}`);
+		if(keyName === 'Delete') {
+			for(var i=0; i<calEvents.length; i++) {
+				if(calEvents[i].selected) {
+					calEvents.splice(i, 1);
+					console.log(i + " deleted");
+					draw();
+				}
+			}
+		}
+	}
+}, false);
 
-var dragging_box = [];
-for(var i=0; i < calEvents.length; i++) {
-	dragging_box.push(false);
-}
 
-var mouseDown = 0;
-document.body.onmousedown = function() { 
-  ++mouseDown;
-  //mdx = event.clientX;
-  //mdy = event.clientX;
-}
-document.body.onmouseup = function() {
-  --mouseDown;
-}
+var top_edge = false;
+var bot_edge = false;
+var on_text = false;
+var moved = false;
 
-function mm(event) {
-
+var prev_y;
+// TODO: make all callback functions use parameter name like this one
+document.body.onmousedown = function(eventP) { 
+	++mouseDown;
 	for(var i=0; i < calEvents.length; i++) {
-		var box = calEvents[i];
-		if(!dragging_box[i]) {
-			if(mouseDown && in_box_n(event,i)){
-				dragging_box[i] = true;
-				mdx = event.clientX;
-				mdy = event.clientY;
-				init_box1_x = calEvents[i].x;
-				init_box1_y = calEvents[i].y;
+		if(in_box_n(eventP, i)) {
+			console.log("in_box_n: " + i);
+			down_on_box = i;
+			prev_y = calEvents[i].y;
+			prev_h = calEvents[i].h;
+			top_edge = check_on_top_edge(eventP, i);
+			bot_edge = check_on_bot_edge(eventP, i);
+			on_text = check_on_text(eventP, i);
+		}
+	}
+	mdx = eventP.clientX;
+	mdy = eventP.clientY;
+}
+
+document.body.onmouseup = function() {
+	--mouseDown;
+	
+	if((down_on_box >= 0) && (!moved)) {
+		calEvents[down_on_box].selected = !calEvents[down_on_box].selected;
+		draw();
+	}
+	if(down_on_box < 0) {
+		for(var i=0; i<calEvents.length; i++) {
+			calEvents[i].selected = false;
+		}
+		draw();
+	}
+	
+	if((down_on_box < 0) && moved) {
+		calEvents.push(mmNewE);
+		mmNewE = {};
+		draw();
+	}
+	if(on_text && !moved) {
+		var text = prompt("Please enter a new name for event:", "[Untitled]");
+		calEvents[down_on_box].text = text;
+		draw();
+	}
+	down_on_box = -1;
+	top_edge = false;
+	bot_edge = false;
+	on_text = false;
+	moved = false;
+}
+
+// TODO: turn saving events back on
+function mm2(event) {
+	if(down_on_box >= 0) {
+		var i = down_on_box;
+		var new_y = prev_y + (event.clientY - mdy);
+		var new_h = prev_h + (event.clientY - mdy);
+		if(Math.abs(new_y - prev_y) > vspace/2) { moved = true; }
+		if(top_edge) {
+			var py = calEvents[i].y;
+			calEvents[i].y = Math.round((new_y-tmargin)/vspace) * vspace + tmargin;
+			calEvents[i].h += py - calEvents[i].y;
+		}
+		else if(bot_edge) {
+			calEvents[i].h = Math.round((new_h-tmargin)/vspace) * vspace + tmargin;
+		}
+		else {
+			calEvents[i].y = Math.round((new_y-tmargin)/vspace) * vspace + tmargin;
+			//savedEvents[i].y = Math.round((new_y-tmargin)/vspace);
+		}
+		draw();
+	}
+	else {
+		if(mouseDown) {
+			var new_h = (event.clientY - mdy);
+			mmNewE.x = Math.floor((mdx-lmargin)/hspace) * hspace + lmargin;
+			mmNewE.y = Math.round((mdy-tmargin)/vspace) * vspace + tmargin;
+			mmNewE.w = hspace-10;
+			mmNewE.h = Math.round((new_h-tmargin)/vspace) * vspace + tmargin;
+			var rgb = "#000000";
+			if(!moved) {
+				var r = Math.floor(Math.random() * 128) + 128;
+				var g = Math.floor(Math.random() * 128) + 128;
+				var b = Math.floor(Math.random() * 128) + 128;
+				rgb = r.toString(16) + g.toString(16) + b.toString(16);
+				mmNewE.color = "#" + rgb;
 			}
-		} else {
-			if(mouseDown){
-				var new_x = init_box1_x + (event.clientX - mdx);
-				var new_y = init_box1_y + (event.clientY - mdy);
-				//box1_x = new_x;
-				calEvents[i].y = Math.round((new_y-tmargin)/vspace) * vspace + tmargin;
-				savedEvents[i].y = Math.round((new_y-tmargin)/vspace);
-				draw();
-			}
-			else {
-				dragging_box[i] = false;
-			}
+			if(mmNewE.h > vspace) { moved = true; }
+			mmNewE.text = "New Event";
+			draw();
 		}
 	}
 }
@@ -273,9 +427,13 @@ function save() {
 		
 //document.getElementById("myCanvas").addEventListener("click", function() {foo(event)} );
 
-document.getElementById("myCanvas").addEventListener("mousemove", function() { mm(event); } );
+document.getElementById("myCanvas").addEventListener("mousemove", function() { mm2(event); } );
 
-window.addEventListener("resize", function() {console.log("resize");} );
+window.addEventListener("resize", function() {console.log("resize"); draw();} );
+
+window.addEventListener("touchstart", function() { console.log("touchstart"); } );
+window.addEventListener("touchmove", function() { console.log("touchmove"); } );
+window.addEventListener("touchend", function() { console.log("touchend"); } );
 
 document.getElementById("myCanvas").addEventListener('contextmenu', function(ev) {
     ev.preventDefault();
