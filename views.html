@@ -12,7 +12,9 @@ html, body {
 </head>
 
 <!--
-See: https://www.epochconverter.com/weeknumbers
+See:
+https://www.epochconverter.com/weeknumbers
+https://www.html5rocks.com/en/mobile/touchandmouse/
 -->
 
 <body>
@@ -21,6 +23,22 @@ See: https://www.epochconverter.com/weeknumbers
 </canvas>
 
 <script>
+
+const numberWithCommas = (x) => {
+  return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+Date.prototype.getWeek = function () {
+    var target  = new Date(this.valueOf());
+    var dayNr   = (this.getDay() + 6) % 7;
+    target.setDate(target.getDate() - dayNr + 3);
+    var firstThursday = target.valueOf();
+    target.setMonth(0, 1);
+    if (target.getDay() != 4) {
+        target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+    }
+    return 1 + Math.ceil((firstThursday - target) / 604800000);
+}
 
 var jan_1_2018 = 1; // Monday
 var days_per_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
@@ -58,15 +76,32 @@ ctx.canvas.width  = window.innerWidth;
 ctx.canvas.height = window.innerHeight-4; // will it always be 4?
 
 var viewVars = {
-    'day': {columns: 4, margin: 75, divs: 4, tmargin: 75},
-    'week': {hours: 8, divs: 6, tmargin: 30, lmargin: 75, vspace: 0, vspace_h: 0, hspace: 0},
+	'day0': {columns: 5, start_h:  6, hours: 15, margin: 75, divs: 12, tmargin: 75}, // 5 columns of 3 hours;  6am -  9pm
+	'day1': {columns: 4, start_h:  6, hours: 16, margin: 75, divs: 12, tmargin: 75}, // 4 columns of 4 hours;  6am - 10pm
+	'day2': {columns: 6, start_h:  6, hours: 18, margin: 75, divs: 12, tmargin: 75}, // 6 columns of 3 hours;  6am - 12am
+	'day3': {columns: 6, start_h:  0, hours: 24, margin: 75, divs:  4, tmargin: 75}, // 6 columns of 4 hours; 12am - 12am
+	'day4': {columns: 4, start_h:  0, hours: 24, margin: 75, divs:  4, tmargin: 75}, // 4 columns of 6 hours; 12am - 12am
+	'day5': {columns: 5, start_h:  4, hours: 20, margin: 75, divs:  4, tmargin: 75}, // 5 columns of 4 hours;  4am - 12am
+	'day6': {columns: 3, start_h: 16, hours:  6, margin: 75, divs: 12, tmargin: 75}, // after work hours; 4pm - 10pm
+	'day7': {columns: 3, start_h:  7, hours:  9, margin: 75, divs: 12, tmargin: 75}, // work hours; 7am - 4pm
+
+	//'week': {hours: 9, divs: 4, start_h: 7, days: 5, day_s: 1, tmargin: 30, lmargin: 75}, // work week
+    'week': {hours: 16, divs: 4, start_h: 6, days: 7, day_s: 0, tmargin: 30, lmargin: 75}, // 6am - 10pm
+	//'week': {hours: 6, divs: 12, start_h: 16, days: 7, day_s: 0, tmargin: 30, lmargin: 75}, // evenings
+	//'week': {hours: 24, divs: 4, start_h: 0, days: 7, day_s: 0, tmargin: 30, lmargin: 75}, // 24x7
+	
+	// TODO: figure out how to exclude sleeping hours (kind of done)
+	'weekend': {columns: 6, start_h:  6, hours: 30, margin: 75, divs: 12, tmargin: 75},
+
     'month': {tmargin: 30},
     'year': {rows: 3},
     'year2': {bw: 50},
-    'sidebar' : {width: 200}
+    'sidebar' : {width: 200},
+	'life' : {},
 };
 
-var viewMode = 'day';
+var dayS = 'day7';
+var viewMode = dayS;
 
 var seconds;
 var minutes;
@@ -75,6 +110,7 @@ var year;
 var month;
 var day;
 var dayOfWeek;
+var week;
 var milliSeconds;
 
 function myGetTime() {
@@ -86,6 +122,7 @@ function myGetTime() {
     month = date.getMonth(); // beware: January = 0; February = 1, etc.
     day = date.getDate();
     dayOfWeek = date.getDay(); // Sunday = 0, Monday = 1, etc.
+	week = date.getWeek(); // added function
     milliSeconds = date.getMilliseconds();
 }
 
@@ -97,19 +134,20 @@ function draw() {
 
     myGetTime();
 
-    if(viewMode === 'day') {
-        var columns = viewVars['day'].columns;
-        var margin = viewVars['day'].margin;
-        var tmargin = viewVars['day'].tmargin;
-        var divs = viewVars['day'].divs;
+    if(viewMode.substring(0,3) === 'day') {
+        var columns = viewVars[viewMode].columns;
+        var margin = viewVars[viewMode].margin;
+        var tmargin = viewVars[viewMode].tmargin;
+		var start_h = viewVars[viewMode].start_h;
+		var hours = viewVars[viewMode].hours;
+        var divs = viewVars[viewMode].divs;
         var hspace = canvas.width/columns;
         var rmargin = hspace - margin;
 
         // dashed lines
-        var hours = 24;
         var vspace = (canvas.height - tmargin) * columns / (hours*divs);
         var vspace_h = vspace*divs;
-        var hpc = Math.round(24/columns);
+        var hpc = Math.round(hours/columns);
 
         ctx.font = "25px Arial";
         ctx.fillStyle = "#000000";
@@ -141,14 +179,13 @@ function draw() {
 
             ctx.font = "13px Arial";
             ctx.fillStyle = "#000000";
-            var hourc1 = (12+(i-1)+ 0)%12+1;
-            var hourc2 = (12+(i-1)+ 6)%12+1;
-            var hourc3 = (12+(i-1)+12)%12+1;
-            var hourc4 = (12+(i-1)+18)%12+1;
-            ctx.fillText(hourc1 + ":00am",10         ,30 + i*vspace_h + tmargin);
-            ctx.fillText(hourc2 + ":00am",10+1*hspace,30 + i*vspace_h + tmargin);
-            ctx.fillText(hourc3 + ":00pm",10+2*hspace,30 + i*vspace_h + tmargin);
-            ctx.fillText(hourc4 + ":00pm",10+3*hspace,30 + i*vspace_h + tmargin);
+			
+			for(var j=0; j<columns; j++) {
+				var mhour = (i-1)+ (j*hpc)+start_h;
+				var ampmhour = (mhour)%12+1;
+				var ampm = ((mhour+1) < 12) ? 'am' : 'pm';
+				ctx.fillText(ampmhour + ":00"+ampm,10+j*hspace,20 + i*vspace_h + tmargin);
+			}
         }
 
 
@@ -175,10 +212,10 @@ function draw() {
         }
 
         // current time line
-        var lc = Math.floor(hour/hpc);
+        var lc = Math.floor((hour-start_h)/hpc);
         var lx = lc * hspace;
-        var hy = (hour - lc*hpc) * vspace_h;
-        var ty = hy + (minutes/60.0) * vspace_h;
+        var hy = ((hour-start_h) - lc*hpc) * vspace_h;
+        var ty = hy + (minutes/60.0) * vspace_h + tmargin;
         var ly = Math.round(ty)+0.5;
         ctx.beginPath();
         ctx.moveTo(lx, ly);
@@ -194,29 +231,31 @@ function draw() {
         var divs = viewVars['week'].divs;
         var tmargin = viewVars['week'].tmargin;
         var lmargin = viewVars['week'].lmargin;
+		var start_h = viewVars['week'].start_h;
         var vspace = (canvas.height - tmargin)/(hours*divs);
         var vspace_h = vspace*divs;
-        var hspace = (canvas.width - lmargin)/7;
-
-        var top_hour = 13;
+		var days_in_week = viewVars['week'].days;
+		var day_s = viewVars['week'].day_s;
+        var hspace = (canvas.width - lmargin)/days_in_week;
 
         ctx.font = "18px Arial";
         ctx.fillStyle = "#000000";
-        for(var i=0; i<7; i++) {
-            ctx.fillText(weekdays[i],i*hspace + lmargin + 10,tmargin-10);
+        for(var i=0; i<days_in_week; i++) {
+            ctx.fillText(weekdays[i+day_s],i*hspace + lmargin + 10,tmargin-10);
         }
-
 
         ctx.font = "13px Arial";
         ctx.fillStyle = "#000000";
         for(var i=0; i<hours; i++) {
-            var mhour = ((top_hour-12)+(i-1))%12+1;
-            ctx.fillText(mhour + ":00pm",10,40 + i*vspace_h);
+			var ampmhour = (start_h)+(i-1);
+            var mhour = (ampmhour)%12+1;
+			var ampm = ((ampmhour+1) < 12) ? 'am' : 'pm'
+            ctx.fillText(mhour + ":00" + ampm,10,40 + i*vspace_h);
         }
 
 
         // vertical lines
-        for(var i=0; i<7; i++) {
+        for(var i=0; i<days_in_week; i++) {
             ctx.beginPath();
             var x = lmargin + Math.round(i * hspace)+0.5;
             ctx.moveTo(x, 0);
@@ -252,9 +291,9 @@ function draw() {
         }
 
         // current time line
-        var lc = dayOfWeek;
+        var lc = dayOfWeek - day_s;
         var lx = lc * hspace + lmargin;
-        var hy = (hour - top_hour) * vspace_h + tmargin;
+        var hy = (hour - start_h) * vspace_h + tmargin;
         var ty = hy + (minutes/60.0) * vspace_h;
         var ly = Math.round(ty)+0.5;
         ctx.beginPath();
@@ -266,6 +305,98 @@ function draw() {
         ctx.stroke();
 
     }
+	else if(viewMode === 'weekend') {
+        var columns = viewVars[viewMode].columns;
+        var margin = viewVars[viewMode].margin;
+        var tmargin = viewVars[viewMode].tmargin;
+		var start_h = viewVars[viewMode].start_h;
+		var hours = viewVars[viewMode].hours;
+        var divs = viewVars[viewMode].divs;
+        var hspace = canvas.width/columns;
+        var rmargin = hspace - margin;
+
+        // dashed lines
+        var vspace = (canvas.height - tmargin) * columns / (hours*divs);
+        var vspace_h = vspace*divs;
+        var hpc = Math.round(hours/columns);
+
+        ctx.font = "25px Arial";
+        ctx.fillStyle = "#000000";
+        ctx.fillText(weekdays[dayOfWeek] + ", " + months[month] + " " + day,50, tmargin-20);
+
+        // dashed lines
+        for(var i=0; i<hours*divs; i++) {
+            ctx.beginPath();
+            var y = Math.round(i * vspace)+0.5;
+            ctx.moveTo(0, y+tmargin);
+            ctx.lineTo(canvas.width, y+tmargin);
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 1]);
+            ctx.strokeStyle = "#e0e0e0";
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // solid lines of hours
+        for(var i=0; i<hours; i++) {
+            ctx.beginPath();
+            var y = Math.round(i * vspace_h);
+            ctx.moveTo(0, y+tmargin);
+            ctx.lineTo(canvas.width, y+tmargin);
+            ctx.lineWidth = 2;
+            ctx.setLineDash([]);
+            ctx.strokeStyle = "#e0e0e0";
+            ctx.stroke();
+
+            ctx.font = "13px Arial";
+            ctx.fillStyle = "#000000";
+			
+			for(var j=0; j<columns; j++) {
+				var cstart_h = (j<3) ? start_h : start_h - 3*hpc;
+				var mhour = (i-1) + (j*hpc) + cstart_h;
+				var ampmhour = (mhour)%12+1;
+				var ampm = ((mhour+1) < 12) ? 'am' : 'pm';
+				ctx.fillText(ampmhour + ":00"+ampm,10+j*hspace,20 + i*vspace_h + tmargin);
+			}
+        }
+
+
+        // vertical lines
+        for(var i=0; i < columns; i++) {
+            ctx.beginPath();
+            var x = Math.round(i * hspace + margin)+0.5;
+            ctx.moveTo(x, tmargin);
+            ctx.lineTo(x, canvas.height);
+            ctx.lineWidth = 1;
+            ctx.setLineDash([]);
+            ctx.strokeStyle = "#c0c0c0";
+            ctx.stroke();
+
+            ctx.beginPath();
+            var x = Math.round((i+1) * hspace)+0.5;
+            ctx.moveTo(x, tmargin);
+            ctx.lineTo(x, canvas.height);
+            ctx.lineWidth = 1;
+            ctx.setLineDash([]);
+            ctx.strokeStyle = "#000000";
+            ctx.stroke();
+
+        }
+
+        // current time line
+        var lc = Math.floor((hour-start_h)/hpc);
+        var lx = lc * hspace;
+        var hy = ((hour-start_h) - lc*hpc) * vspace_h;
+        var ty = hy + (minutes/60.0) * vspace_h + tmargin;
+        var ly = Math.round(ty)+0.5;
+        ctx.beginPath();
+        ctx.moveTo(lx, ly);
+        ctx.lineTo(lx+hspace, ly);
+        ctx.lineWidth = 3;
+        ctx.setLineDash([]);
+        ctx.strokeStyle = "#ff0000";
+        ctx.stroke();
+	}
     else if(viewMode === 'month') {
         var tmargin = viewVars['month'].tmargin;
         var vspace = (canvas.height-tmargin)/6;
@@ -383,7 +514,7 @@ function draw() {
                 var x = Math.round(c*20) + 5.5;
                 ctx.beginPath();
                 ctx.rect(x,y,15,15);
-		        if((r==30) && (c==0)) {
+		        if(((r+1)==week) && (c==dayOfWeek)) {
 		            ctx.fillStyle = "#c0c0c0";
 		            ctx.fill();
                 }
@@ -392,7 +523,47 @@ function draw() {
             }
         }
     }
+	else if(viewMode === 'life') {
+		// TODO: this isn't exact; doesn't account for daylight saving time, etc.
+		var fudge = 0.997023238;
+		var oneDay = 24*60*60*1000*fudge; // hours*minutes*seconds*milliseconds
+		var firstDate = new Date(1990,01,24);
+		var secondDate = new Date(); // today
+		var diffDays = Math.round(Math.abs((firstDate.getTime() - secondDate.getTime())/(oneDay)));
+		ctx.font = "18px Arial";
+		ctx.fillStyle = "#000000";
+		//ctx.fillText("Day " + numberWithCommas(diffDays) + " of " + numberWithCommas(90*365),100,100);
 
+		ctx.strokeStyle = "#c0c0c0";
+		ctx.fillStyle = "#c0c0c0";
+		ctx.font = "8px Arial";
+		var rs = 90;
+		var cs = 52;
+        for(var r=0; r<rs; r++) {
+			var bw = Math.floor((canvas.width-30)/cs);
+			var bh = Math.floor((canvas.height-0)/rs);
+            var y = Math.round(r*bh) + 3.5;
+            for(var c=0; c<cs; c++) {
+                var x = Math.round(c*bw) + 35.5;
+                ctx.beginPath();
+                ctx.rect(x,y,bw,bh);
+				if((r+1990)==year) {
+					ctx.fillStyle = "#f0f0f0";
+					ctx.fill()
+				}
+				if(((r+1990)==year) && ((c+1)==week)) {
+					ctx.fillStyle = "#c0c0c0";
+					ctx.fill();
+				}
+				if((365*r+c+1)==diffDays) {
+					//ctx.fill();
+				}
+				ctx.stroke();
+            }
+			ctx.fillStyle = "#c0c0c0";
+			ctx.fillText("" + (1990+r),10,y+8);
+        }
+	}
 }
 
 function myFunction(e) {
@@ -412,7 +583,7 @@ document.addEventListener('keydown', (event) => {
 	} else {
 		console.log(`Key pressed ${keyName}`);
         if(keyName === 'd') {
-            viewMode = 'day';
+            viewMode = dayS;
         }
         if(keyName === 'w') {
             viewMode = 'week';
@@ -433,6 +604,15 @@ document.addEventListener('keydown', (event) => {
         }
         if(keyName === 's') {
             viewMode = 'sidebar';
+        }
+        if(keyName === 'e') {
+            viewMode = 'day6';
+        }
+        if(keyName === 'l') {
+            viewMode = 'life';
+        }
+        if(keyName === 'z') {
+            viewMode = 'weekend';
         }
 	}
 }, false);
