@@ -11,6 +11,10 @@ html, body {
 </style>
 </head>
 
+<!--
+See: https://www.epochconverter.com/weeknumbers
+-->
+
 <body>
 
 <canvas id="myCanvas">
@@ -59,6 +63,7 @@ var viewVars = {
     'month': {tmargin: 30},
     'year': {rows: 3},
     'year2': {bw: 50},
+    'sidebar' : {width: 200}
 };
 
 var viewMode = 'day';
@@ -370,6 +375,23 @@ function draw() {
             }
         }
     }
+    else if(viewMode === 'sidebar') {
+        var width = viewVars['sidebar'].width;
+        for(var r=0; r<52; r++) {
+            var y = Math.round(r*canvas.height/52) + 3.5;
+            for(var c=0; c<7; c++) {
+                var x = Math.round(c*20) + 5.5;
+                ctx.beginPath();
+                ctx.rect(x,y,15,15);
+		        if((r==30) && (c==0)) {
+		            ctx.fillStyle = "#c0c0c0";
+		            ctx.fill();
+                }
+		        ctx.strokeStyle = "#000000";
+		        ctx.stroke();
+            }
+        }
+    }
 
 }
 
@@ -408,6 +430,9 @@ document.addEventListener('keydown', (event) => {
             else {
                 viewMode = 'year';
             }
+        }
+        if(keyName === 's') {
+            viewMode = 'sidebar';
         }
 	}
 }, false);
