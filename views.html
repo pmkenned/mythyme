@@ -85,8 +85,8 @@ var viewVars = {
 	'day6': {columns: 3, start_h: 16, hours:  6, margin: 75, divs: 12, tmargin: 75}, // after work hours; 4pm - 10pm
 	'day7': {columns: 3, start_h:  7, hours:  9, margin: 75, divs: 12, tmargin: 75}, // work hours; 7am - 4pm
 
-	//'week': {hours: 9, divs: 4, start_h: 7, days: 5, day_s: 1, tmargin: 30, lmargin: 75}, // work week
-    'week': {hours: 16, divs: 4, start_h: 6, days: 7, day_s: 0, tmargin: 30, lmargin: 75}, // 6am - 10pm
+	'week': {hours: 9, divs: 4, start_h: 7, days: 5, day_s: 1, tmargin: 30, lmargin: 75}, // work week
+    //'week': {hours: 16, divs: 4, start_h: 6, days: 7, day_s: 0, tmargin: 30, lmargin: 75}, // 6am - 10pm
 	//'week': {hours: 6, divs: 12, start_h: 16, days: 7, day_s: 0, tmargin: 30, lmargin: 75}, // evenings
 	//'week': {hours: 24, divs: 4, start_h: 0, days: 7, day_s: 0, tmargin: 30, lmargin: 75}, // 24x7
 	
@@ -96,6 +96,7 @@ var viewVars = {
     'month': {tmargin: 30},
     'year': {rows: 3},
     'year2': {bw: 50},
+	'year3': {},
     'sidebar' : {width: 200},
 	'life' : {},
 };
@@ -506,6 +507,58 @@ function draw() {
             }
         }
     }
+    else if(viewMode === 'year3') {
+        ctx.lineWidth = 1;
+
+		var years = 6;
+        var rows = 1;
+        var cols = Math.round(12/rows);
+
+        var hm = 100;
+        var vm = 100;
+        var sm = 20;
+        var bw = Math.round(((canvas.width - 2*hm) / cols) - sm);
+        var bh = Math.round(((canvas.height- 2*vm) / years) - sm);
+
+		for(var c=0; c<cols; c++) {
+			ctx.font = "18px Arial";
+			ctx.fillStyle = "#000000";
+			var x = Math.round(c*(bw+sm)+hm+sm/2) + 0.5;
+			var y = Math.round(vm+sm/2) + 0.5;
+			ctx.fillText(months[c],x+5,y-10);
+		}
+
+        for(var r=0; r<years; r++) {
+			var y = Math.round(r*(bh+sm)+vm+sm/2) + 0.5;
+			ctx.fillStyle = "#000000";
+			ctx.fillText("" + (2018+r),hm-60,y+Math.round(bh/2));
+            for(var c=0; c<cols; c++) {
+		        var x = Math.round(c*(bw+sm)+hm+sm/2) + 0.5;
+				ctx.beginPath();
+		        ctx.rect(x,y,bw,bh);
+		        ctx.strokeStyle = "#000000";
+		        ctx.fillStyle = "#ffffff";
+		        ctx.fill();
+				ctx.stroke();
+
+		        ctx.strokeStyle = "#c0c0c0";
+                for(var mc=1; mc < 7; mc++) {
+					var bx = Math.round(x+mc*bw/7) + 0.5;
+		            ctx.beginPath();
+                    ctx.moveTo(bx, y);
+                    ctx.lineTo(bx, y+bh);
+		            ctx.stroke();
+                }
+                for(var mr=1; mr < 6; mr++) {
+					var by = Math.round(y+mr*bh/6) + 0.5;
+		            ctx.beginPath();
+                    ctx.moveTo(x,    by);
+                    ctx.lineTo(x+bw, by);
+		            ctx.stroke();
+                }
+            }
+        }
+    }
     else if(viewMode === 'sidebar') {
         var width = viewVars['sidebar'].width;
         for(var r=0; r<52; r++) {
@@ -596,6 +649,9 @@ document.addEventListener('keydown', (event) => {
                 viewMode = 'year2';
             }
             else if(viewMode === 'year2') {
+                viewMode = 'year3';
+            }
+            else if(viewMode === 'year3') {
                 viewMode = 'year';
             }
             else {
