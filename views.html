@@ -24,6 +24,16 @@ https://www.html5rocks.com/en/mobile/touchandmouse/
 
 <script>
 
+var cEvents = [
+//    {stime: '6:40 pm', etime: '7:15 pm', sdate: '7/30/18', edate: '7/30/18'}
+];
+
+var rmargin_events = [
+    {text: "Thing1", duration: "15m"},
+    {text: "Thing2", duration: "1h"},
+    {text: "Thing3", duration: "30m"},
+];
+
 const numberWithCommas = (x) => {
   return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
@@ -76,14 +86,14 @@ ctx.canvas.width  = window.innerWidth;
 ctx.canvas.height = window.innerHeight-4; // will it always be 4?
 
 var viewVars = {
-	'day0': {columns: 5, start_h:  6, hours: 15, margin: 75, divs: 12, tmargin: 75}, // 5 columns of 3 hours;  6am -  9pm
-	'day1': {columns: 4, start_h:  6, hours: 16, margin: 75, divs: 12, tmargin: 75}, // 4 columns of 4 hours;  6am - 10pm
-	'day2': {columns: 6, start_h:  6, hours: 18, margin: 75, divs: 12, tmargin: 75}, // 6 columns of 3 hours;  6am - 12am
-	'day3': {columns: 6, start_h:  0, hours: 24, margin: 75, divs:  4, tmargin: 75}, // 6 columns of 4 hours; 12am - 12am
-	'day4': {columns: 4, start_h:  0, hours: 24, margin: 75, divs:  4, tmargin: 75}, // 4 columns of 6 hours; 12am - 12am
-	'day5': {columns: 5, start_h:  4, hours: 20, margin: 75, divs:  4, tmargin: 75}, // 5 columns of 4 hours;  4am - 12am
-	'day6': {columns: 3, start_h: 16, hours:  6, margin: 75, divs: 12, tmargin: 75}, // after work hours; 4pm - 10pm
-	'day7': {columns: 3, start_h:  7, hours:  9, margin: 75, divs: 12, tmargin: 75}, // work hours; 7am - 4pm
+	'day0': {columns: 5, start_h:  6, hours: 15, margin: 75, divs: 12, tmargin: 75, rmargin: 0}, // 5 columns of 3 hours;  6am -  9pm
+	'day1': {columns: 4, start_h:  6, hours: 16, margin: 75, divs: 12, tmargin: 75, rmargin: 0}, // 4 columns of 4 hours;  6am - 10pm
+	'day2': {columns: 6, start_h:  6, hours: 18, margin: 75, divs: 12, tmargin: 75, rmargin: 0}, // 6 columns of 3 hours;  6am - 12am
+	'day3': {columns: 6, start_h:  0, hours: 24, margin: 75, divs:  4, tmargin: 75, rmargin: 0}, // 6 columns of 4 hours; 12am - 12am
+	'day4': {columns: 4, start_h:  0, hours: 24, margin: 75, divs:  4, tmargin: 75, rmargin: 0}, // 4 columns of 6 hours; 12am - 12am
+	'day5': {columns: 5, start_h:  4, hours: 20, margin: 75, divs:  4, tmargin: 75, rmargin: 0}, // 5 columns of 4 hours;  4am - 12am
+	'day6': {columns: 3, start_h: 16, hours:  6, margin: 75, divs: 12, tmargin: 75, rmargin: 0}, // after work hours; 4pm - 10pm
+	'day7': {columns: 3, start_h:  7, hours:  9, margin: 75, divs: 12, tmargin: 75, rmargin: 0}, // work hours; 7am - 4pm
 
 	'week': {hours: 9, divs: 4, start_h: 7, days: 5, day_s: 1, tmargin: 30, lmargin: 75}, // work week
     //'week': {hours: 16, divs: 4, start_h: 6, days: 7, day_s: 0, tmargin: 30, lmargin: 75}, // 6am - 10pm
@@ -101,7 +111,7 @@ var viewVars = {
 	'life' : {},
 };
 
-var dayS = 'day7';
+var dayS = 'day0';
 var viewMode = dayS;
 
 var seconds;
@@ -142,8 +152,10 @@ function draw() {
 		var start_h = viewVars[viewMode].start_h;
 		var hours = viewVars[viewMode].hours;
         var divs = viewVars[viewMode].divs;
-        var hspace = canvas.width/columns;
-        var rmargin = hspace - margin;
+
+        var rmargin = viewVars[viewMode].rmargin; // NEW
+
+        var hspace = (canvas.width - rmargin)/columns;
 
         // dashed lines
         var vspace = (canvas.height - tmargin) * columns / (hours*divs);
@@ -225,6 +237,64 @@ function draw() {
         ctx.setLineDash([]);
         ctx.strokeStyle = "#ff0000";
         ctx.stroke();
+
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "#ff0000";
+        for(var e=0; e < cEvents.length; e++) {
+            var st = cEvents[e].stime;
+            var et = cEvents[e].etime;
+            var sd = cEvents[e].sdate;
+            var ed = cEvents[e].edate;
+
+            var sparts = st.match(/(\d+):(\d+) (\w+)/);
+            var shours = /am/i.test(sparts[3]) ? parseInt(sparts[1], 10) : parseInt(sparts[1], 10) + 12;
+            var sminutes = parseInt(sparts[2], 10);
+
+            //console.log(shours);
+            //console.log(sminutes);
+
+            var sc = Math.floor((shours-start_h)/hpc);
+            var sx = sc * hspace;
+
+            var shy = ((shours-start_h) - sc*hpc) * vspace_h;
+            var sty = shy + (sminutes/60.0) * vspace_h + tmargin;
+            var sy = Math.round(sty)+0.5;
+
+            var eparts = et.match(/(\d+):(\d+) (\w+)/);
+            var ehours = /am/i.test(eparts[3]) ? parseInt(eparts[1], 10) : parseInt(eparts[1], 10) + 12;
+            var eminutes = parseInt(eparts[2], 10);
+
+            var ec = Math.floor((ehours-start_h)/hpc);
+            var ex = ec * hspace;
+
+            var ehy = ((ehours-start_h) - ec*hpc) * vspace_h;
+            var ety = ehy + (eminutes/60.0) * vspace_h + tmargin;
+            var ey = Math.round(ety)+0.5;
+
+            var ew = hspace;
+            var eh = sy - ey;
+
+            ctx.rect(ex,ey,ew,eh);
+            ctx.stroke();
+        }
+
+        // TODO: create rmargin_on variable
+        if(true) {
+            ctx.beginPath();
+            ctx.rect(canvas.width - rmargin + 0.5, tmargin+0.5, rmargin-1, canvas.height-tmargin-1);
+            ctx.fillStyle = "#ffffff";
+            ctx.fill();
+            ctx.strokeStyle = "#000000";
+            ctx.stroke();
+
+            ctx.font = "14px Arial";
+            ctx.fillStyle = "#000000";
+            for(var i=0; i < rmargin_events.length; i++) {
+                var rme = rmargin_events[i];
+                ctx.fillText(rme.text, canvas.width - rmargin + 10,tmargin + 20*(i+1));
+            }
+        }
+
     }
     else if(viewMode === 'week') {
 
@@ -669,6 +739,14 @@ document.addEventListener('keydown', (event) => {
         }
         if(keyName === 'z') {
             viewMode = 'weekend';
+        }
+        if(keyName === 'r') {
+            if(viewVars['day0'].rmargin == 0) {
+                viewVars['day0'].rmargin = 300;
+            }
+            else {
+                viewVars['day0'].rmargin = 0;
+            }
         }
 	}
 }, false);
