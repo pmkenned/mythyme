@@ -1,0 +1,58 @@
+body {
+    margin: 0;
+    height: 100vh;
+}
+
+body.centerForm {
+    max-width: 250px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+div.centerForm {
+    text-align: center;
+}
+
+div.centerForm input {
+    margin: 5px 5px 0px 5px;
+    width: 95%;
+    height: 2em;
+}
+
+div.centerForm button {
+    width: 97%;
+    margin: 5px;
+    height: 2.5em;
+}
+
+#loginDiv {
+    margin-top: 40vh;
+}
+
+#signupDiv {
+    margin-top: 35vh;
+}
+
+.topDiv {
+    clear: both;
+    height: 30px;
+}
+
+.topDiv .alignLeft {
+    float: left;
+}
+
+.topDiv .alignRight {
+    float: right;
+}
+
+.topDiv .alignRight span.loggedInAs {
+    margin-right: 10px;
+}
+
+.topDiv .alignRight span.username {
+}
+
+.topDiv .alignRight form {
+    display: inline;
+}
