@@ -56,23 +56,27 @@ if (!isset($_SESSION['username'])) {
         <button onclick="modifyEvent()">modifyEvent</button><br />
 
         <script>
+
+function test() {
+    foo = {s: "hi", t: 4};
+    bar = {s: "there", t: 5};
+    baz = {s: "you", t: 3};
+    console.log('%c Hello, world', 'color: orange; font-weight: bold;');
+    console.table([foo, bar, baz], ['s','t']);
+    console.time('x');
+    let i = 0;
+    while(i < 1000000) { i++; }
+    console.timeEnd('x');
+    console.dir(foo);
+    console.dir(checkForUpdates);
+    console.trace('my trace');
+    return 'end of test';
+}
+
 $(function() {
     document.addEventListener('keydown', function(event){
         //console.log(event);
         if (event.key == "?") {
-            foo = {s: "hi", t: 4};
-            bar = {s: "there", t: 5};
-            baz = {s: "you", t: 3};
-            snap = {r: "you", w: 3};
-            console.log('%c Hello, world', 'color: orange; font-weight: bold;');
-            console.table([foo, bar, baz, snap], ['s','t']);
-            console.time('x');
-            let i = 0;
-            while(i < 1000000) { i++; }
-            console.timeEnd('x');
-            console.dir(foo);
-            console.dir(checkForUpdates);
-            console.trace('my trace');
         }
     });
 });
