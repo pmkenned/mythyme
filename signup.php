@@ -7,7 +7,6 @@
         <title>Create Account</title>
         <link rel="stylesheet" type="text/css" href="style.css">
         <link rel="icon" type="image/x-icon" href="/favicon.ico">
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
     </head>
 
     <body class="centerForm">
@@ -40,7 +39,6 @@ if (isset($_GET['error'])) {
     }
 }
 ?>
-
             <form action="signup.inc.php" method="POST">
                 <input type="text" name="uid" placeholder="Username" />
                 <input type="text" name="mail" placeholder="E-mail" />
@@ -49,13 +47,6 @@ if (isset($_GET['error'])) {
                 <button type="submit" name="signup-submit">Sign Up</button>
             </form>
         </div>
-
-<script>
-$(function() {
-    console.log("ready!");
-
-});
-</script>
 
     </body>
 

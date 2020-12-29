@@ -1,2 +1,10 @@
 #!/usr/bin/env bash
-rsync -avzhe ssh --progress --delete --exclude '.*' --exclude 'do_rsync.sh' --exclude 'old' --exclude 'README.md' ./ paulkenn@paulmkennedy.com:~/www/mythyme/
+
+EXCLUDES=()
+EXCLUDES+=(--exclude ".*")
+EXCLUDES+=(--exclude old)
+EXCLUDES+=(--exclude do_rsync.sh)
+EXCLUDES+=(--exclude sql_connect.sh)
+EXCLUDES+=(--exclude README.md)
+
+rsync -avzh --delete --progress "${EXCLUDES[@]}" ./ paulkenn@paulmkennedy.com:~/www/mythyme/

@@ -32,6 +32,7 @@ if (!isset($_SESSION['username'])) {
 
         <div>
             <button onclick="checkForUpdates()">checkForUpdates</button><br />
+            <button onclick="test()">test</button><br />
         </div>
 
         <!-- TODO: consider using async form post -->
@@ -81,8 +82,6 @@ function test() {
     //console.clear();
     console.count();
 
-    // fetch API: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
-
     const timer_str = `${timer_num}`;
     timer_num++;
     console.time(timer_str);
@@ -102,7 +101,7 @@ $(function() {
               .then(response => response.text())
               .then(data => {console.log(data); });
         } else if (event.key == "t") {
-            test();
+            //test();
         }
     });
 });
@@ -135,19 +134,19 @@ function _createEvent(eventTitle, eventDescription, eventLocation, startDate, st
     console.log(startTime);
     console.log(endDate);
     console.log(endTime);
-    $.get('mt_functions.php', {
-        func: 'createEvent',
-        title: eventTitle,
-        desc: eventDescription,
-        location: eventLocation,
-        start_date: startDate,
-        start_time: startTime,
-        end_date: endDate,
-        end_time: endTime
-    })
-    .done(function(data) {
-        console.log(data);
-    });
+    //$.get('mt_functions.php', {
+    //    func: 'createEvent',
+    //    title: eventTitle,
+    //    desc: eventDescription,
+    //    location: eventLocation,
+    //    start_date: startDate,
+    //    start_time: startTime,
+    //    end_date: endDate,
+    //    end_time: endTime
+    //})
+    //.done(function(data) {
+    //    console.log(data);
+    //});
 }
 
 function getEvents() {
