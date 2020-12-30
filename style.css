@@ -1,6 +1,7 @@
 body {
     margin: 0;
     height: 100vh;
+    overflow: hidden;
 }
 
 body.centerForm {
@@ -51,6 +52,7 @@ div.centerForm button {
 }
 
 .topDiv .alignRight span.username {
+    font-weight: bold;
 }
 
 .topDiv .alignRight form {

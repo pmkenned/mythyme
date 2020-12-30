@@ -7,15 +7,13 @@ if (!isset($_SESSION['username'])) {
     returnJsonHttpResponse(400, 'ERROR: username not defined');
 }
 
-if (!isset($_GET['func'])) {
-    returnJsonHttpResponse(400, "ERROR: 'func' parameter not set");
-}
-
-$func = $_GET['func'];
-
-$table = ($_GET['test']) ? 'test_events' : 'events';
-
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+
+    if (!isset($_POST['func'])) {
+        returnJsonHttpResponse(400, "ERROR: 'func' parameter not set");
+    }
+    $func = $_POST['func'];
+    $table = ($_POST['test']) ? 'test_events' : 'events';
 
     switch($func) {
     case 'createEventsTable':
@@ -26,48 +24,67 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         break;
     case 'createEvent':
         if (
-            !isset($_GET['title']) or
-            !isset($_GET['start_date']) or
-            !isset($_GET['start_time']) or
-            !isset($_GET['end_date']) or
-            !isset($_GET['end_time'])
+            !isset($_POST['title']) or
+            !isset($_POST['start_date']) or
+            !isset($_POST['start_time']) or
+            !isset($_POST['end_date']) or
+            !isset($_POST['end_time'])
         ) {
             returnJsonHttpResponse(400, 'ERROR: must specify title, start_date, start_time, end_date, and end_time');
-        } else {
-            $title = $_GET['title'];
-            $desc = $_GET['desc']; // check if this is set
-            $location = $_GET['location']; // check if this is set
-            $start_date = $_GET['start_date'];
-            $start_time = $_GET['start_time'];
-            $end_date = $_GET['end_date'];
-            $end_time = $_GET['end_time'];
-            createEvent($title, $desc, $location, $start_date, $start_time, $end_date, $end_time);
         }
+        $title = $_POST['title'];
+        $desc = $_POST['desc']; // check if this is set
+        $location = $_POST['location']; // check if this is set
+        $start_date = $_POST['start_date'];
+        $start_time = $_POST['start_time'];
+        $end_date = $_POST['end_date'];
+        $end_time = $_POST['end_time'];
+        createEvent($title, $desc, $location, $start_date, $start_time, $end_date, $end_time);
         break;
     case 'deleteEvent':
-        if (!isset($_GET['event_id'])) {
+        if (!isset($_POST['event_id'])) {
             returnJsonHttpResponse(400, 'ERROR: must specify event_id');
-        } else {
-            $event_id = $_GET['event_id'];
-            deleteEvent($event_id);
         }
+        $event_id = $_POST['event_id'];
+        deleteEvent($event_id);
         break;
     case 'modifyEvent':
-        modifyEvent();
+        if (
+            !isset($_POST['event_id']) or 
+            !isset($_POST['start_time']) or 
+            !isset($_POST['end_time'])
+        ) {
+            returnJsonHttpResponse(400, 'ERROR: must specify event_id, new start_time and new end_time');
+        }
+        $event_id = $_POST['event_id'];
+        $new_start_time = $_POST['start_time'];
+        $new_end_time = $_POST['end_time'];
+        modifyEvent($event_id, $new_start_time, $new_end_time);
         break;
     default:
-        returnJsonHttpResponse(400, 'ERROR: invalid function designation ' . $_GET['func']);
+        returnJsonHttpResponse(400, 'ERROR: invalid function designation ' . $_POST['func']);
         break;
     }
 
 } elseif ($_SERVER["REQUEST_METHOD"] == "GET") {
+
+    if (!isset($_GET['func'])) {
+        returnJsonHttpResponse(400, "ERROR: 'func' parameter not set");
+    }
+    $func = $_GET['func'];
+    $table = ($_GET['test']) ? 'test_events' : 'events';
 
     switch($func) {
     case 'checkForUpdates':
         checkForUpdates(0, 0);
         break;
     case 'getEvents':
-        getEvents('2021-01-01', '2021-01-07');
+        if (!isset($_GET['begin_date']) or !isset($_GET['end_date'])) {
+            returnJsonHttpResponse(400, 'ERROR: must specify begin_date and end_date');
+        }
+        $begin_date = $_GET['begin_date'];
+        $end_date = $_GET['end_date'];
+        getEvents($begin_date, $end_date);
         break;
     default:
         returnJsonHttpResponse(400, 'ERROR: invalid function designation ' . $_GET['func']);
@@ -213,7 +230,6 @@ function deleteEvent($event_id)
     // TODO: check to make sure event with id event_id exists
     global $conn;
     global $table;
-    //$query = "DELETE FROM $table WHERE id = ? AND owner = ?";
     $query = "DELETE FROM $table WHERE id = ?";
     $stmt = mysqli_stmt_init($conn);
     if (!mysqli_stmt_prepare($stmt, $query)) {
@@ -228,9 +244,40 @@ function deleteEvent($event_id)
     returnJsonHttpResponse(200, "event deleted");
 }
 
-function modifyEvent()
+// TODO: allow any combination of fields to be updated
+function modifyEvent($event_id, $new_start_time, $new_end_time)
 {
-    returnJsonHttpResponse(200, "modifyEvent TBD");
+    global $conn;
+    global $table;
+
+    /* validate parameters */
+
+    if (empty($event_id) or empty($new_start_time) or empty($new_end_time)) {
+        returnJsonHttpResponse(400, "ERROR: must specify event_id, new start_time, and new end_time");
+    }
+
+    if(!strtotime($new_start_time)) { returnJsonHttpResponse(400, "ERROR: invalid start_time '$new_start_time'"); }
+    if(!strtotime($new_end_time)) { returnJsonHttpResponse(400, "ERROR: invalid end_time '$new_end_time'"); }
+
+    $start_time_sql = date_format(date_create($new_start_time), "H:i:s");
+    $end_time_sql = date_format(date_create($new_end_time), "H:i:s");
+
+    if ($end_time_sql <= $start_time_sql) { returnJsonHttpResponse(400, "ERROR: invalid start/end times"); }
+
+    /* update event */
+
+    $query = "UPDATE $table SET start_time = ?, end_time = ? WHERE id = ?";
+    $stmt = mysqli_stmt_init($conn);
+    if (!mysqli_stmt_prepare($stmt, $query)) {
+        returnJsonHttpResponse(500, 'ERROR: mysqli_stmt_prepare -- ' . __FILE__ . '#' . __LINE__ . "\n");
+    }
+    if (!mysqli_stmt_bind_param($stmt, "ssi", $start_time_sql, $end_time_sql, intval($event_id))) {
+        returnJsonHttpResponse(500, 'ERROR: mysqli_stmt_bind_param -- ' . __FILE__ . '#' . __LINE__ . "\n");
+    }
+    if (!mysqli_stmt_execute($stmt)) {
+        returnJsonHttpResponse(500, 'ERROR: mysqli_stmt_execute -- ' . __FILE__ . '#' . __LINE__ . "\n");
+    }
+    returnJsonHttpResponse(200, "event $event_id modified");
 }
 
 ?>

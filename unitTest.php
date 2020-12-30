@@ -33,29 +33,26 @@ $(function() {
     });
 });
 
-    /* NOTE: ideally, the data would go in the body of the post
-     * however, for some reason (perhaps having to do with https rewrite rule)
-     * the POST body gets discarded at some point, so for now I am passing the data
-     * in via query parameters */
     async function postData(url = '', data = {}) {
-      const response = await fetch(url, {
-        method: 'POST',
-        mode: 'cors',
-        cache: 'no-cache',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        redirect: 'follow',
-        body: JSON.stringify(data)
-      });
-      return response.json();
+        const query = new URLSearchParams();
+        Object.entries(data).forEach(entry => query.append(entry[0], entry[1]));
+        const postBody = query.toString();
+        const response = await fetch(url, {
+            method: 'POST',
+            mode: 'cors',
+            cache: 'no-cache',
+            credentials: 'same-origin',
+            //headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+            redirect: 'follow',
+            //body: JSON.stringify(data)
+            body: postBody
+        });
+        return response.json();
     }
 
     async function createEventsTable() {
-        const query = new URLSearchParams();
-        query.append("func", "createEventsTable");
-        query.append("test", "1");
-        const url = "mt_functions.php?" + query.toString();
-        await postData(url, {})
+        await postData("mt_functions.php", {func: 'createEventsTable', test: '1'})
           .then(data => { console.log(data); } )
           .catch(error => { console.error(error); } );
     }
@@ -72,29 +69,28 @@ $(function() {
     }
 
     async function _createEvent(title, desc, _location, start_date, start_time, end_date, end_time) {
-        const query = new URLSearchParams();
-        query.append("func", "createEvent");
-        query.append("test", "1");
-        query.append("title", title);
-        query.append("desc", desc);
-        query.append("location", _location);
-        query.append("start_date", start_date);
-        query.append("start_time", start_time);
-        query.append("end_date", end_date);
-        query.append("end_time", end_time);
-        const url = "mt_functions.php?" + query.toString();
-
         // TODO: get the id of the newly created event so it can be deleted
-        await postData(url, {})
+        await postData("mt_functions.php", {
+            func: "createEvent",
+            test: "1",
+            title: title,
+            desc: desc,
+            location: _location,
+            start_date: start_date,
+            start_time: start_time,
+            end_date: end_date,
+            end_time: end_time
+        })
           .then(data => { console.log(data); } )
           .catch(error => { console.error(error);} );
     }
 
-    async function getEvents() {
+    async function getEvents(begin_date, end_date) {
         const query = new URLSearchParams();
         query.append('func', 'getEvents');
         query.append("test", "1");
-        // TODO: begin and end dates
+        query.append("begin_date", begin_date);
+        query.append("end_date", end_date);
         const url = 'mt_functions.php?' + query.toString();
         await fetch(url)
             .then(response => response.json())
@@ -103,34 +99,28 @@ $(function() {
     }
 
     async function deleteEvent() {
-        const query = new URLSearchParams();
-        query.append("func", "deleteEvent");
-        query.append("test", "1");
-        query.append("event_id", "0");
-        const url = "mt_functions.php?" + query.toString();
-        await postData(url, {})
+        await postData("mt_functions.php", {
+            func: "deleteEvent",
+            test: "1",
+            event_id: "0"
+        })
           .then(data => { console.log(data); } )
           .catch(error => { console.error(error); } );
     }
 
     async function modifyEvent() {
-        const query = new URLSearchParams();
-        query.append("func", "modifyEvent");
-        query.append("test", "1");
-        query.append("event_id", "0");
         // TODO: add parameters
-        const url = "mt_functions.php?" + query.toString();
-        await postData(url, {})
+        await postData("mt_functions.php", {
+            func: "modifyEvent",
+            test: "1",
+            event_id: "0"
+        })
           .then(data => { console.log(data); } )
           .catch(error => { console.error(error); } );
     }
 
     async function destroyEventsTable() {
-        const query = new URLSearchParams();
-        query.append("func", "destroyEventsTable");
-        query.append("test", "1");
-        const url = "mt_functions.php?" + query.toString();
-        await postData(url, {})
+        await postData("mt_functions.php", {func: 'destroyEventsTable', test: '1'})
           .then(data => { console.log(data); } )
           .catch(error => { console.error(error); } );
     }
@@ -149,7 +139,7 @@ $(function() {
         await _createEvent("new_event", "New Event", "Maine", "January 01, 2021", "09:30", "2020-12-28", "10:30"); // should cause error
         await _createEvent("new_event", "New Event", "Maine", "January 01, 2020", "09:30", "2020-01-01", "10:30");
 
-        await getEvents();
+        await getEvents("2021-01-01", "2021-01-07");
 
         await deleteEvent();
 
