@@ -45,6 +45,10 @@ const RIGHT_MOUSE_BUTTON = 2;
 const HOURS_IN_DAY = 24;
 const DAYS_IN_WEEK = 7;
 
+// TODO: use these
+const VIEW_START_HOUR = 0;
+const VIEW_END_HOUR = 23;
+
 const grid_presets = [1, 5, 10, 15, 20, 30, 60];
 let grid_idx = 3;
 let grid_size = grid_presets[grid_idx];
@@ -99,6 +103,21 @@ const monthNamesShort = [
     'Dec'
 ];
 
+const colors = [
+    'hsl(0, 50%, 50%)',
+    'hsl(30, 50%, 50%)',
+    'hsl(60, 50%, 50%)',
+    'hsl(90, 50%, 50%)',
+    'hsl(120, 50%, 50%)',
+    'hsl(150, 50%, 50%)',
+    'hsl(180, 50%, 50%)',
+    'hsl(210, 50%, 50%)',
+    'hsl(240, 50%, 50%)',
+    'hsl(270, 50%, 50%)',
+    'hsl(300, 50%, 50%)',
+    'hsl(330, 50%, 50%)',
+];
+
 let $canvas;
 let canvas;
 let ctx;
@@ -118,6 +137,7 @@ let mouse_right_btn_down = false;
 let selected_event = null;
 let selected_top = false;
 let selected_bot = false;
+let selected_event_moved = false;
 let selected_event_x_init, selected_event_y_init;
 let selected_event_x_final, selected_event_y_final;
 
@@ -144,13 +164,9 @@ const hourHeight = () => Math.round(can_h/(HOURS_IN_DAY+1));
 const hoursMinsToY = (hour, min) => Math.round((hour+1+min/60.0) * hourHeight());
 
 const dyTodt = (dy) => {
-    const d = new Date();
-    d.setHours((dy < 0 ? -1 : 1)*Math.floor(Math.abs(dy)/hourHeight()));
-    const dm = (dy < 0 ? -1 : 1)*Math.round(60*(Math.abs(dy) % hourHeight())/hourHeight())
-    d.setMinutes(dm);
-    d.setSeconds(0);
-    d.setMilliseconds(0);
-    return d;
+    const hours = (dy < 0 ? -1 : 1)*Math.floor(Math.abs(dy)/hourHeight());
+    const minutes = (dy < 0 ? -1 : 1)*Math.round(60*(Math.abs(dy) % hourHeight())/hourHeight());
+    return {hours, minutes};
 };
 
 const yToHour = y => Math.floor((y - hourHeight())/hourHeight());
@@ -180,30 +196,15 @@ const minutesBetweenDates = (dt1, dt2) => Math.round((dt2.getTime() - dt1.getTim
 function draw(timestamp) {
     ctx.clearRect(0, 0, can_w, can_h);
 
-    ctx.strokeStyle = "black";
+    ctx.lineWidth = 1;
     ctx.fillStyle = "black";
     ctx.font = "15px Arial";
-
-    // draw vertical lines
-    for (let i = 0; i < DAYS_IN_WEEK; i++) {
-        if (true || (i > 0)) {
-            ctx.beginPath();
-            ctx.moveTo(to_px(i*colWidth()), 0);
-            ctx.lineTo(to_px(i*colWidth()), can_h);
-            ctx.stroke();
-        }
-        const col_date = new Date(origin_date.getTime());
-        col_date.setDate(col_date.getDate() + i);
-        const month = monthNamesShort[col_date.getMonth()];
-        const _date = col_date.getDate();
-        ctx.fillText(dayNamesShort[i], to_px(i*colWidth()), 20);
-        ctx.fillText(`${month}, ${_date}`, to_px(i*colWidth()), 40);
-    }
 
     // draw horizontal lines
     for (let i = 0; i < HOURS_IN_DAY+1; i++) {
         if (i > 0) {
-            ctx.fillText(`${i-1}:00`, 5, i*hourHeight()+15);
+
+
             ctx.strokeStyle = "black";
             const hour_y = to_px(i*hourHeight());
             ctx.beginPath();
@@ -224,7 +225,34 @@ function draw(timestamp) {
                 ctx.stroke();
             }
             ctx.setLineDash([]);
+
+            // write hour on left-hand side
+            const [hour, am_pm] = ((row) => {
+                let hour = row-1;
+                const am_pm = (hour < 12) ? 'am' : 'pm';
+                hour = (hour == 0) ? 12 : hour;
+                hour = (hour > 12) ? hour-12 : hour;
+                return [hour, am_pm];
+            })(i);
+            ctx.fillText(`${hour} ${am_pm}`, 5, i*hourHeight()+15);
         }
+    }
+
+    // draw vertical lines
+    ctx.strokeStyle = "black";
+    for (let i = 0; i < DAYS_IN_WEEK; i++) {
+        if (true || (i > 0)) {
+            ctx.beginPath();
+            ctx.moveTo(to_px(i*colWidth()), 0);
+            ctx.lineTo(to_px(i*colWidth()), can_h);
+            ctx.stroke();
+        }
+        const col_date = new Date(origin_date.getTime());
+        col_date.setDate(col_date.getDate() + i);
+        const month = monthNamesShort[col_date.getMonth()];
+        const _date = col_date.getDate();
+        ctx.fillText(dayNamesShort[i], to_px(i*colWidth()), 20);
+        ctx.fillText(`${month}, ${_date}`, to_px(i*colWidth()), 40);
     }
 
     // draw events
@@ -237,7 +265,8 @@ function draw(timestamp) {
             const top_px = hoursMinsToY(dest_start_date.getHours(), dest_start_date.getMinutes());
             const bot_px = hoursMinsToY(dest_end_date.getHours(),   dest_end_date.getMinutes());
 
-            ctx.fillStyle = (e === selected_event) ? "cyan" : e.color;
+            ctx.fillStyle = (e.end_date.getTime() < Date.now()) ? "hsl(0, 0%, 80%)" : e.color;
+            ctx.fillStyle = (e === selected_event) ? "cyan" : ctx.fillStyle;
             ctx.fillRect(col*colWidth()+1, top_px, colWidth()-1, bot_px - top_px);
 
             ctx.fillStyle = "white";
@@ -248,25 +277,22 @@ function draw(timestamp) {
     // draw new event if active
     ctx.fillStyle = "red";
     if (new_event_active) {
-        const new_event_top = Math.min(new_event_y_init, new_event_y_final);
-        const new_event_bot = Math.max(new_event_y_init, new_event_y_final);
         const col = xToCol(new_event_x_init);
-        const sd = new Date(origin_date.getTime());
-        sd.setDate(sd.getDate() + col);
-        sd.setHours(yToHour(new_event_top));
-        sd.setMinutes(yToMin(new_event_top));
-        if (snap_to_grid) { sd.roundN(grid_size); }
-        const ed = new Date(origin_date.getTime());
-        ed.setDate(ed.getDate() + col); // TODO: use new_event_x_final?
-        ed.setHours(yToHour(new_event_bot));
-        ed.setMinutes(yToMin(new_event_bot));
-        if (snap_to_grid) { ed.roundN(grid_size); }
-        new_event.start_date = sd;
-        new_event.end_date = ed;
-        const top_px = hoursMinsToY(sd.getHours(), sd.getMinutes());
-        const bot_px = hoursMinsToY(ed.getHours(), ed.getMinutes());
+        const top_px = hoursMinsToY(new_event.start_date.getHours(), new_event.start_date.getMinutes());
+        const bot_px = hoursMinsToY(new_event.end_date.getHours(), new_event.end_date.getMinutes());
         ctx.fillRect(col*colWidth()+1, top_px, colWidth()-1, bot_px - top_px);
     }
+
+    // draw current time
+    const current_date = new Date();
+    const col = current_date.getDay();
+    const line_y = hoursMinsToY(current_date.getHours(), current_date.getMinutes());
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "red";
+    ctx.beginPath();
+    ctx.moveTo(to_px(col*colWidth()), to_px(line_y));
+    ctx.lineTo(to_px((col+1)*colWidth()), to_px(line_y));
+    ctx.stroke();
 
     window.requestAnimationFrame(draw);
 }
@@ -274,6 +300,7 @@ function draw(timestamp) {
 // TODO: encapsulate the calculations used here
 function setClickedEvent(x, y) {
     selected_event = null;
+    selected_event_moved = false;
     selected_top = false;
     selected_bot = false;
     for (const e of events) {
@@ -294,20 +321,20 @@ function setClickedEvent(x, y) {
 
 // TODO: prevent moving start time past end time and vice versa
 function getModifiedTimes(e) {
-    const dx = (e === selected_event) ? selected_event_x_final - selected_event_x_init : 0;
-    const dy = (e === selected_event) ? selected_event_y_final - selected_event_y_init : 0;
+    const dx = (e === selected_event && selected_event_moved) ? selected_event_x_final - selected_event_x_init : 0;
+    const dy = (e === selected_event && selected_event_moved) ? selected_event_y_final - selected_event_y_init : 0;
     const dt = dyTodt(dy);
 
     const dest_start_date = new Date(e.start_date.getTime());
     if (!selected_bot) {
-        dest_start_date.setHours(dest_start_date.getHours() + dt.getHours());
-        dest_start_date.setMinutes(dest_start_date.getMinutes() + dt.getMinutes());
+        dest_start_date.setHours(dest_start_date.getHours() + dt.hours);
+        dest_start_date.setMinutes(dest_start_date.getMinutes() + dt.minutes);
     }
 
     const dest_end_date = new Date(e.end_date.getTime());
     if (!selected_top) {
-        dest_end_date.setHours(dest_end_date.getHours() + dt.getHours());
-        dest_end_date.setMinutes(dest_end_date.getMinutes() + dt.getMinutes());
+        dest_end_date.setHours(dest_end_date.getHours() + dt.hours);
+        dest_end_date.setMinutes(dest_end_date.getMinutes() + dt.minutes);
     }
 
     // snap to grid
@@ -323,6 +350,24 @@ function getModifiedTimes(e) {
     }
 
     return [dest_start_date, dest_end_date];
+}
+
+function setNewEventStartEnd() {
+    const new_event_top = Math.min(new_event_y_init, new_event_y_final);
+    const new_event_bot = Math.max(new_event_y_init, new_event_y_final);
+    const col = xToCol(new_event_x_init);
+    const sd = new Date(origin_date.getTime());
+    sd.setDate(sd.getDate() + col);
+    sd.setHours(yToHour(new_event_top));
+    sd.setMinutes(yToMin(new_event_top));
+    if (snap_to_grid) { sd.roundN(grid_size); }
+    const ed = new Date(origin_date.getTime());
+    ed.setDate(ed.getDate() + col); // TODO: use new_event_x_final?
+    ed.setHours(yToHour(new_event_bot));
+    ed.setMinutes(yToMin(new_event_bot));
+    if (snap_to_grid) { ed.roundN(grid_size); }
+    new_event.start_date = sd;
+    new_event.end_date = ed;
 }
 
 function mousedown(e) {
@@ -341,12 +386,15 @@ function mousedown(e) {
             new_event_y_init = mouse_down_y;
             new_event_x_final = mouse_down_x;
             new_event_y_final = mouse_down_y;
+            setNewEventStartEnd()
         } else {
             selected_event_x_init = mouse_down_x;
             selected_event_y_init = mouse_down_y;
             selected_event_x_final = mouse_down_x;
             selected_event_y_final = mouse_down_y;
         }
+    } else if (mouse_right_btn_down) {
+        setClickedEvent(mouse_down_x, mouse_down_y);
     }
 }
 
@@ -357,11 +405,10 @@ function mouseup(e) {
     if (e.button == LEFT_MOUSE_BUTTON) {
         if (new_event_active) {
             const dy = new_event_y_final - new_event_y_init;
-            if (dy > MIN_DY) {
-                //const start_date = xyToDateTime(new_event_x_init, new_event_y_init);
-                //const end_date = xyToDateTime(new_event_x_final, new_event_y_final);
+            if (Math.abs(dy) > MIN_DY) {
                 const title = prompt("Enter a title for the event", "New Event");
                 if (title !== null) {
+                    // TODO: add the event to events[] instead of using getEvents()
                     _createEvent(title, "My Event", "Somewhere",
                         new_event.start_date.getSQLDate(),
                         new_event.start_date.getSQLTime(),
@@ -376,6 +423,12 @@ function mouseup(e) {
             if (dest_start_date.getTime() !== selected_event.start_date.getTime() ||
                 dest_end_date.getTime() !== selected_event.end_date.getTime()) {
                 modifyEvent(selected_event.id, dest_start_date.getSQLTime(), dest_end_date.getSQLTime());
+
+                // actually move the event instead of displaying it offset
+                selected_event.start_date.setTime(dest_start_date.getTime());
+                selected_event.end_date.setTime(dest_end_date.getTime());
+                selected_event_x_final = selected_event_x_init;
+                selected_event_y_final = selected_event_y_init;
             }
         }
     } else if (e.button == RIGHT_MOUSE_BUTTON) {
@@ -391,7 +444,9 @@ function mousemove(e) {
         if (selected_event === null) {
             new_event_x_final = mouse_x;
             new_event_y_final = mouse_y;
+            setNewEventStartEnd();
         } else {
+            selected_event_moved = true;
             selected_event_x_final = mouse_x;
             selected_event_y_final = mouse_y;
         }
@@ -441,6 +496,11 @@ function keyup(e) {
 function blur() {
 }
 
+function contextmenu(e) {
+    e.preventDefault();
+    return false; // 
+}
+
 function resize() {
     canvas.width = window.innerWidth - 2;
     canvas.height = window.innerHeight - canvas.offsetTop;
@@ -449,7 +509,6 @@ function resize() {
     can_h = canvas.height;
 }
 
-// TODO: should this call getEvents()?
 function setOriginDateFromToday() {
     origin_date = new Date()
     origin_date.setDate((new Date()).getDate() - (new Date()).getDay());
@@ -508,6 +567,7 @@ $(function() {
     $(window).keydown(keydown);
     $(window).keyup(keyup);
     $(window).blur(blur);
+    $(window).contextmenu(contextmenu);
     $(window).resize(resize);
 
     setOriginDateFromToday();
@@ -522,6 +582,9 @@ function checkForUpdates() {
     $.get('mt_functions.php', {func: 'checkForUpdates'})
     .done(function(data) {
         console.log(data);
+    }).fail(function(jqXHR, textStatus, errorThrown) {
+        console.error(jqXHR.responseJSON);
+        getEvents();
     });
 }
 
@@ -539,6 +602,9 @@ function _createEvent(eventTitle, eventDescription, eventLocation, startDate, st
     .done(function(data) {
         console.log(data);
         getEvents(); // TODO: decide if this is the right way to do this
+    }).fail(function(jqXHR, textStatus, errorThrown) {
+        console.error(jqXHR.responseJSON);
+        getEvents();
     });
 }
 
@@ -550,23 +616,42 @@ function getEvents() {
         end_date: next_origin_date.getSQLDate()
     })
     .done(function(data) {
-        events = []; // TODO: instead of clearing, match fetched events with existing events by id
-        selected_event = null;
         for (const e of data) {
             const start_date = getDateFromSQL(e.start_date, e.start_time);
             const end_date = getDateFromSQL(e.end_date, e.end_time);
-            events.push({title: e.title, start_date: start_date, end_date: end_date, color: 'blue', id: e.id });
+            const found_event = events.find(item => item.id === e.id);
+            const color = colors[e.id % colors.length];
+            if (found_event === undefined) {
+                events.push({title: e.title, start_date: start_date, end_date: end_date, color: color, id: e.id });
+            } else {
+                Object.assign(found_event , {title: e.title, start_date: start_date, end_date: end_date, color: color, id: e.id});
+            }
         }
+    }).fail(function(jqXHR, textStatus, errorThrown) {
+        console.error(jqXHR.responseJSON);
+        getEvents();
     });
 }
 
 function deleteEvent(eventID) {
+
+    // TODO: confirm that no problems are caused by doing this before the POST finishes
+    const found_event_idx = events.findIndex(item => item.id === eventID);
+    if (found_event_idx === undefined) {
+        console.error(`deleteEvent: cannot delete event ${eventID}, no such event`);
+        return;
+    }
+    events.splice(found_event_idx, 1); // delete it
+
     $.post('mt_functions.php', {
         func: 'deleteEvent',
         event_id: eventID
     })
     .done(function(data) {
         console.log(data);
+        //getEvents();
+    }).fail(function(jqXHR, textStatus, errorThrown) {
+        console.error(jqXHR.responseJSON);
         getEvents();
     });
 }
@@ -580,6 +665,9 @@ function modifyEvent(eventID, startTime, endTime) {
     })
     .done(function(data) {
         console.log(data);
+        //getEvents();
+    }).fail(function(jqXHR, textStatus, errorThrown) {
+        console.error(jqXHR.responseJSON);
         getEvents();
     });
 }
