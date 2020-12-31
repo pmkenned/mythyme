@@ -32,41 +32,32 @@ if (!isset($_SESSION['username'])) {
 
         <canvas id="myCanvas"></canvas>
 
-<!--
-        <div>
-            <button onclick="checkForUpdates()">checkForUpdates</button><br />
-            <button onclick="test()">test</button><br />
-        </div>
+<script>
 
-        <div>
-            <input type="text" id="eventTitle" placeholder="Title..." /><br />
-            <input type="text" id="eventDescription" placeholder="Description..." /><br />
-            <input type="text" id="eventLocation" placeholder="Location..." /><br />
-            <label for="eventStartDate">Start Date</label>
-            <input type="date" id="eventStartDate"></input>
-            <label for="eventStartTime">Start Time</label>
-            <input type="time" id="eventStartTime"></input><br />
-            <label for="eventEndDate">End Date</label>
-            <input type="date" id="eventEndDate"></input>
-            <label for="eventEndTime">End Time</label>
-            <input type="time" id="eventEndTime"></input><br />
-            <button onclick="createEventButtonFunc()">createEvent</button>
-        </div>
+"use strict";
 
-        <button onclick="getEvents()">getEvents</button><br />
+const MIN_DY = 0;
+const EDGE_SIZE = 10;
 
-        <label for="eventID">Event ID</label>
-        <input type="number" id="eventID" value="1"></input>
-        <button onclick="deleteEventButtonFunc()">deleteEvent</button><br />
+const LEFT_MOUSE_BUTTON = 0;
+const RIGHT_MOUSE_BUTTON = 2;
 
-        <button onclick="modifyEvent()">modifyEvent</button><br />
--->
-
-        <script>
-
-const CLIENT_Y_OFFSET = 30;
 const HOURS_IN_DAY = 24;
 const DAYS_IN_WEEK = 7;
+
+const grid_presets = [1, 5, 10, 15, 20, 30, 60];
+let grid_idx = 3;
+let grid_size = grid_presets[grid_idx];
+
+const dayNamesShort = [
+    'Sun',
+    'Mon',
+    'Tue',
+    'Wed',
+    'Thu',
+    'Fri',
+    'Sat'
+];
 
 const dayNames = [
     'Sunday',
@@ -111,230 +102,298 @@ const monthNamesShort = [
 let $canvas;
 let canvas;
 let ctx;
-let w;
-let h;
+let can_w, can_h;
+
+let snap_to_grid = true;
 
 let origin_date;
 let next_origin_date;
+
+let mouse_x, mouse_y;
+let mouse_down_x, mouse_down_y;
 
 let mouse_left_btn_down = false;
 let mouse_right_btn_down = false;
 
 let selected_event = null;
-let selected_event_y_px_off;
-let selected_event_y_px_off_init;
+let selected_top = false;
+let selected_bot = false;
+let selected_event_x_init, selected_event_y_init;
+let selected_event_x_final, selected_event_y_final;
 
 let new_event_active = false;
-let new_event_col;
-let new_event_top_px;
-let new_event_bot_px;
+let new_event = {};
+let new_event_x_init, new_event_y_init;
+let new_event_x_final, new_event_y_final;
 
-// NOTE: JavaScript's Date() constructor starts months at 0!
-let events = [
-    //{title: 'Event 1', start_date: '2020-12-28', end_date: '2020-12-28', start_time: '09:30', end_time: '10:30' },
-    //{title: 'Event 2', start_date: '2020-12-29', end_date: '2020-12-29', start_time: '10:15', end_time: '12:30' },
-
-    //{title: 'Event 1', start_date: new Date(2020,11,28), end_date: new Date(2020,11,28), start_time: '09:30', end_time: '10:30' },
-    //{title: 'Event 2', start_date: new Date(2020,11,29), end_date: new Date(2020,11,29), start_time: '10:15', end_time: '12:30' },
-    //{title: 'Event 3', start_date: new Date(2020,11,26), end_date: new Date(2020,11,26), start_time: '10:15', end_time: '12:30' },
-
-    {title: 'Event 1', start_date: new Date(2020,11,28,9,30), end_date: new Date(2020,11,28,10,30), color: 'red' },
-    {title: 'Event 2', start_date: new Date(2020,11,29,10,15), end_date: new Date(2020,11,29,12,30), color: 'blue' },
-    {title: 'Event 3', start_date: new Date(2020,11,26,10,15), end_date: new Date(2020,11,26,12,30), color: 'green' },
-    {title: 'Event 4', start_date: new Date(2020,11,27,10,15), end_date: new Date(2020,11,27,12,30), color: 'orange' },
-    {title: 'Event 5', start_date: new Date(2021,00,01,13,45), end_date: new Date(2021,00,01,14,00), color: 'purple' }
-];
-events = [];
+let events = [];
 
 function getDateFromSQL(sqlDate, sqlTime) {
-    const year = parseInt(sqlDate.split('-')[0]);
-    const month = parseInt(sqlDate.split('-')[1]) - 1;
-    const _date = parseInt(sqlDate.split('-')[2]);
-    const hour = parseInt(sqlTime.split(':')[0]);
-    const min = parseInt(sqlTime.split(':')[1]);
+    let [year, month, _date] = sqlDate.split('-').map(Number);
+    month--; // NOTE: JavaScript's Date class indexes months starting at 0
+    const [hour, min] = sqlTime.split(':').map(Number);
     return new Date(year, month, _date, hour, min);
 }
 
-// TODO: tidy this
-function clientToCanvasY(y) { return y - CLIENT_Y_OFFSET; }
-function clientToCanvasX(x) { return x; }
+const clientToCanvasY = y => y - canvas.offsetTop;
+const clientToCanvasX = x => x;
+const to_px = x => Math.round(x) + 0.5;
+const roundToMultiple = (x,n) => Math.round(x/n)*n;
+const colWidth = () => Math.round(can_w/DAYS_IN_WEEK);
+const hourHeight = () => Math.round(can_h/(HOURS_IN_DAY+1));
+const hoursMinsToY = (hour, min) => Math.round((hour+1+min/60.0) * hourHeight());
 
-function to_px(x) {
-    return Math.round(x) + 0.5;
-}
+const dyTodt = (dy) => {
+    const d = new Date();
+    d.setHours((dy < 0 ? -1 : 1)*Math.floor(Math.abs(dy)/hourHeight()));
+    const dm = (dy < 0 ? -1 : 1)*Math.round(60*(Math.abs(dy) % hourHeight())/hourHeight())
+    d.setMinutes(dm);
+    d.setSeconds(0);
+    d.setMilliseconds(0);
+    return d;
+};
+
+const yToHour = y => Math.floor((y - hourHeight())/hourHeight());
+const yToMin = y => Math.round(60*(y % hourHeight())/hourHeight());
+
+const colToDate = (col) => {
+    const d = new Date(origin_date.getTime());
+    d.setDate(d.getDate() + col);
+    return d;
+};
+
+const xToCol = x => Math.floor(x / colWidth());
+
+const xyToDateTime = (x, y) => {
+    const col = xToCol(x);
+    const _date = colToDate(col);
+    _date.setHours(yToHour(y));
+    _date.setMinutes(yToMin(y));
+    _date.setSeconds(0);
+    _date.setMilliseconds(0);
+    return _date;
+};
+
+const mousePosToDateTime = () => xyToDateTime(mouse_x, mouse_y);
+const minutesBetweenDates = (dt1, dt2) => Math.round((dt2.getTime() - dt1.getTime()) / (60*1000));
 
 function draw(timestamp) {
-    ctx.clearRect(0, 0, w, h);
+    ctx.clearRect(0, 0, can_w, can_h);
 
     ctx.strokeStyle = "black";
     ctx.fillStyle = "black";
     ctx.font = "15px Arial";
 
+    // draw vertical lines
     for (let i = 0; i < DAYS_IN_WEEK; i++) {
         if (true || (i > 0)) {
             ctx.beginPath();
-            ctx.moveTo(to_px(i*w/DAYS_IN_WEEK), 0);
-            ctx.lineTo(to_px(i*w/DAYS_IN_WEEK), h);
-            ctx.closePath();
+            ctx.moveTo(to_px(i*colWidth()), 0);
+            ctx.lineTo(to_px(i*colWidth()), can_h);
             ctx.stroke();
         }
-        let col_date = new Date(origin_date.getTime());
+        const col_date = new Date(origin_date.getTime());
         col_date.setDate(col_date.getDate() + i);
         const month = monthNamesShort[col_date.getMonth()];
         const _date = col_date.getDate();
-        ctx.fillText(dayNames[i], to_px(i*w/DAYS_IN_WEEK), 20);
-        ctx.fillText(`${month}, ${_date}`, to_px(i*w/DAYS_IN_WEEK), 40);
+        ctx.fillText(dayNamesShort[i], to_px(i*colWidth()), 20);
+        ctx.fillText(`${month}, ${_date}`, to_px(i*colWidth()), 40);
     }
 
+    // draw horizontal lines
     for (let i = 0; i < HOURS_IN_DAY+1; i++) {
         if (i > 0) {
+            ctx.fillText(`${i-1}:00`, 5, i*hourHeight()+15);
+            ctx.strokeStyle = "black";
+            const hour_y = to_px(i*hourHeight());
             ctx.beginPath();
-            ctx.moveTo(0, to_px(i*h/(HOURS_IN_DAY+1)));
-            ctx.lineTo(w, to_px(i*h/(HOURS_IN_DAY+1)));
-            ctx.closePath();
+            ctx.moveTo(0,     hour_y);
+            ctx.lineTo(can_w, hour_y);
             ctx.stroke();
+
+            ctx.strokeStyle = "hsl(0, 0%, 70%)";
+            ctx.setLineDash([]);
+            ctx.setLineDash([3, 1]);
+            const grid_per_hour = Math.round(60/grid_size); 
+            const grid_height = hourHeight()/grid_per_hour;
+            for (let j = 1; j < grid_per_hour; j++) {
+                const grid_y = to_px(hour_y + j*grid_height);
+                ctx.beginPath();
+                ctx.moveTo(0,     grid_y);
+                ctx.lineTo(can_w, grid_y);
+                ctx.stroke();
+            }
+            ctx.setLineDash([]);
         }
     }
 
+    // draw events
     ctx.font = "10px Arial";
     for (const e of events) {
         if ((e.end_date >= origin_date) && (e.start_date <= next_origin_date)) {
+            const [dest_start_date, dest_end_date] = getModifiedTimes(e);
 
-            if (e === selected_event) {
-                const day = e.start_date.getDay();
+            const col = e.start_date.getDay();
+            const top_px = hoursMinsToY(dest_start_date.getHours(), dest_start_date.getMinutes());
+            const bot_px = hoursMinsToY(dest_end_date.getHours(),   dest_end_date.getMinutes());
 
-                const shour = e.start_date.getHours();
-                const smin = e.start_date.getMinutes();
+            ctx.fillStyle = (e === selected_event) ? "cyan" : e.color;
+            ctx.fillRect(col*colWidth()+1, top_px, colWidth()-1, bot_px - top_px);
 
-                const ehour = e.end_date.getHours();
-                const emin = e.end_date.getMinutes();
-
-                const dy = (selected_event_y_px_off - selected_event_y_px_off_init);
-                const top_px = Math.round((shour+smin/60.0)*h/(HOURS_IN_DAY+1)) + dy;
-                const bot_px = Math.round((ehour+emin/60.0)*h/(HOURS_IN_DAY+1)) + dy;
-
-                ctx.fillStyle = "cyan";
-                ctx.fillText(e.title, day*w/7, top_px);
-                ctx.fillRect(Math.round(day*w/7)+1, top_px, Math.round(w/7)-1, bot_px - top_px);
-            } else {
-                const day = e.start_date.getDay();
-
-                const shour = e.start_date.getHours();
-                const smin = e.start_date.getMinutes();
-
-                const ehour = e.end_date.getHours();
-                const emin = e.end_date.getMinutes();
-
-                const top_px = Math.round((shour+smin/60.0)*h/(HOURS_IN_DAY+1));
-                const bot_px = Math.round((ehour+emin/60.0)*h/(HOURS_IN_DAY+1));
-
-                ctx.fillStyle = e.color;
-                ctx.fillText(e.title, day*w/7, top_px);
-                ctx.fillRect(Math.round(day*w/7)+1, top_px, Math.round(w/7)-1, bot_px - top_px);
-            }
+            ctx.fillStyle = "white";
+            ctx.fillText(e.title, (col+0.3)*colWidth(), (top_px+bot_px)/2);
         }
     }
 
+    // draw new event if active
     ctx.fillStyle = "red";
     if (new_event_active) {
-        ctx.fillRect(Math.round(new_event_col*w/7)+1, new_event_top_px, Math.round(w/7)-1, new_event_bot_px - new_event_top_px);
+        const new_event_top = Math.min(new_event_y_init, new_event_y_final);
+        const new_event_bot = Math.max(new_event_y_init, new_event_y_final);
+        const col = xToCol(new_event_x_init);
+        const sd = new Date(origin_date.getTime());
+        sd.setDate(sd.getDate() + col);
+        sd.setHours(yToHour(new_event_top));
+        sd.setMinutes(yToMin(new_event_top));
+        if (snap_to_grid) { sd.roundN(grid_size); }
+        const ed = new Date(origin_date.getTime());
+        ed.setDate(ed.getDate() + col); // TODO: use new_event_x_final?
+        ed.setHours(yToHour(new_event_bot));
+        ed.setMinutes(yToMin(new_event_bot));
+        if (snap_to_grid) { ed.roundN(grid_size); }
+        new_event.start_date = sd;
+        new_event.end_date = ed;
+        const top_px = hoursMinsToY(sd.getHours(), sd.getMinutes());
+        const bot_px = hoursMinsToY(ed.getHours(), ed.getMinutes());
+        ctx.fillRect(col*colWidth()+1, top_px, colWidth()-1, bot_px - top_px);
     }
 
     window.requestAnimationFrame(draw);
 }
 
 // TODO: encapsulate the calculations used here
-function checkForEventClick(canvas_x, canvas_y) {
+function setClickedEvent(x, y) {
+    selected_event = null;
+    selected_top = false;
+    selected_bot = false;
     for (const e of events) {
-        const day = e.start_date.getDay();
-        const event_x_min = Math.round(day*w/7)+1;
-        const event_x_max = event_x_min + Math.round(w/7);
-        const shour = e.start_date.getHours();
-        const smin = e.start_date.getMinutes();
-        const ehour = e.end_date.getHours();
-        const emin = e.end_date.getMinutes();
-        const top_px = Math.round((shour+smin/60.0)*h/(HOURS_IN_DAY+1));
-        const bot_px = Math.round((ehour+emin/60.0)*h/(HOURS_IN_DAY+1));
-        if ((canvas_x >= event_x_min && canvas_x <= event_x_max) && (canvas_y >= top_px && canvas_y <= bot_px)) {
-            return e;
+        const e_col = e.start_date.getDay();
+        const e_x_min = e_col*colWidth()+1;
+        const e_x_max = e_x_min + colWidth();
+        const e_y_min = hoursMinsToY(e.start_date.getHours(), e.start_date.getMinutes());
+        const e_y_max = hoursMinsToY(e.end_date.getHours(), e.end_date.getMinutes());
+
+        if ((x >= e_x_min && x <= e_x_max) && (y >= e_y_min && y <= e_y_max)) {
+            selected_event = e;
+            selected_top = (y >= e_y_min && y <= e_y_min + EDGE_SIZE) ? true : false;
+            selected_bot = (y <= e_y_max && y >= e_y_max - EDGE_SIZE) ? true : false;
+            break;
         }
     }
-    return null;
 }
 
-function colPxToDateTime(col, px) {
-    let d = new Date(origin_date.getTime());
-    d.setDate(d.getDate() + col);
-    const hourHeight = Math.round(h/(HOURS_IN_DAY+1));
-    d.setHours(Math.floor((px-hourHeight)/hourHeight));
-    d.setMinutes(Math.round(60*(px % hourHeight)/hourHeight));
-    d.setSeconds(0);
-    return d;
+// TODO: prevent moving start time past end time and vice versa
+function getModifiedTimes(e) {
+    const dx = (e === selected_event) ? selected_event_x_final - selected_event_x_init : 0;
+    const dy = (e === selected_event) ? selected_event_y_final - selected_event_y_init : 0;
+    const dt = dyTodt(dy);
+
+    const dest_start_date = new Date(e.start_date.getTime());
+    if (!selected_bot) {
+        dest_start_date.setHours(dest_start_date.getHours() + dt.getHours());
+        dest_start_date.setMinutes(dest_start_date.getMinutes() + dt.getMinutes());
+    }
+
+    const dest_end_date = new Date(e.end_date.getTime());
+    if (!selected_top) {
+        dest_end_date.setHours(dest_end_date.getHours() + dt.getHours());
+        dest_end_date.setMinutes(dest_end_date.getMinutes() + dt.getMinutes());
+    }
+
+    // snap to grid
+    if (snap_to_grid && Math.abs(dy) > 0) {
+        if (selected_top) {
+            dest_start_date.roundN(grid_size);
+        } else if (selected_bot) {
+            dest_end_date.roundN(grid_size);
+        } else {
+            const rounded_off = dest_start_date.roundN(grid_size);
+            dest_end_date.setMinutes(dest_end_date.getMinutes() + rounded_off);
+        }
+    }
+
+    return [dest_start_date, dest_end_date];
 }
 
 function mousedown(e) {
-    mouse_left_btn_down = (e.button == 0) ? true : mouse_left_btn_down;
-    mouse_right_btn_down = (e.button == 2) ? true : mouse_right_btn_down;
+    mouse_left_btn_down = (e.button == LEFT_MOUSE_BUTTON) ? true : mouse_left_btn_down;
+    mouse_right_btn_down = (e.button == RIGHT_MOUSE_BUTTON) ? true : mouse_right_btn_down;
+
+    mouse_down_x = clientToCanvasX(e.clientX);
+    mouse_down_y = clientToCanvasY(e.clientY);
 
     if (mouse_left_btn_down) {
-        const canvas_x = clientToCanvasX(e.clientX);
-        const canvas_y = clientToCanvasY(e.clientY);
-        selected_event = checkForEventClick(canvas_x, canvas_y);
+        //selected_event = getClickedEvent(mouse_down_x, mouse_down_y);
+        setClickedEvent(mouse_down_x, mouse_down_y);
         if (selected_event === null) {
-			//new_event_active = true;
-			new_event_col    = Math.floor(e.clientX*DAYS_IN_WEEK/w);
-			new_event_top_px = canvas_y;
-			new_event_bot_px = canvas_y;
+            new_event_active = true;
+            new_event_x_init = mouse_down_x;
+            new_event_y_init = mouse_down_y;
+            new_event_x_final = mouse_down_x;
+            new_event_y_final = mouse_down_y;
         } else {
-            selected_event_y_px_off_init = canvas_y;
-            selected_event_y_px_off = canvas_y;
+            selected_event_x_init = mouse_down_x;
+            selected_event_y_init = mouse_down_y;
+            selected_event_x_final = mouse_down_x;
+            selected_event_y_final = mouse_down_y;
         }
     }
 }
 
 function mouseup(e) {
-    mouse_left_btn_down = (e.button == 0) ? false : mouse_left_btn_down;
-    mouse_right_btn_down = (e.button == 2) ? false : mouse_right_btn_down;
+    mouse_left_btn_down = (e.button == LEFT_MOUSE_BUTTON) ? false : mouse_left_btn_down;
+    mouse_right_btn_down = (e.button == RIGHT_MOUSE_BUTTON) ? false : mouse_right_btn_down;
 
-    if (!mouse_left_btn_down) {
+    if (e.button == LEFT_MOUSE_BUTTON) {
         if (new_event_active) {
-            let start_date = colPxToDateTime(new_event_col, new_event_top_px);
-            let end_date = colPxToDateTime(new_event_col, new_event_bot_px);
-            let title = prompt("Enter a title for the event", "New Event");
-            if (title !== null) {
-                _createEvent(title, "My Event", "Somewhere",
-                    start_date.getSQLDate(),
-                    start_date.getSQLTime(),
-                    end_date.getSQLDate(),
-                    end_date.getSQLTime());
+            const dy = new_event_y_final - new_event_y_init;
+            if (dy > MIN_DY) {
+                //const start_date = xyToDateTime(new_event_x_init, new_event_y_init);
+                //const end_date = xyToDateTime(new_event_x_final, new_event_y_final);
+                const title = prompt("Enter a title for the event", "New Event");
+                if (title !== null) {
+                    _createEvent(title, "My Event", "Somewhere",
+                        new_event.start_date.getSQLDate(),
+                        new_event.start_date.getSQLTime(),
+                        new_event.end_date.getSQLDate(),
+                        new_event.end_date.getSQLTime());
+                }
             }
             new_event_active = false;
         }
         if (selected_event !== null) {
-            // TODO: modify event according to y-offset
-            //const new_date = colPxToDateTime(4, selected_event_y_px_off);
-            selected_event_y_px_off = selected_event_y_px_off_init;
-            const start_date = new Date(selected_event.start_date.getTime());
-            start_date.setHours(start_date.getHours() + 1);
-            const end_date = new Date(selected_event.end_date.getTime());
-            end_date.setHours(end_date.getHours() + 1);
-            const new_start_time = start_date.getSQLTime();
-            const new_end_time = end_date.getSQLTime();
-            modifyEvent(selected_event.id, new_start_time, new_end_time);
+            const [dest_start_date, dest_end_date] = getModifiedTimes(selected_event);
+            if (dest_start_date.getTime() !== selected_event.start_date.getTime() ||
+                dest_end_date.getTime() !== selected_event.end_date.getTime()) {
+                modifyEvent(selected_event.id, dest_start_date.getSQLTime(), dest_end_date.getSQLTime());
+            }
         }
+    } else if (e.button == RIGHT_MOUSE_BUTTON) {
     }
 }
 
-// TODO: if user clicks without moving mouse, make event of default duration?
-//       alternatively, only create an event if the mouse has been moved a certain minimum amount
 function mousemove(e) {
-    const canvas_y = clientToCanvasY(e.clientY);
+
+    mouse_x = clientToCanvasX(e.clientX);
+    mouse_y = clientToCanvasY(e.clientY);
+
     if (mouse_left_btn_down) {
         if (selected_event === null) {
-			new_event_active = true;
-            new_event_bot_px = canvas_y;
+            new_event_x_final = mouse_x;
+            new_event_y_final = mouse_y;
         } else {
-            selected_event_y_px_off = canvas_y;
+            selected_event_x_final = mouse_x;
+            selected_event_y_final = mouse_y;
         }
     }
 }
@@ -344,6 +403,20 @@ function keydown(e) {
         fetch('getErrors.php')
           .then(response => response.text())
           .then(data => {console.log(data); });
+    } else if (e.key == "[") {
+        if (grid_idx > 0) { grid_idx--; }
+        grid_size = grid_presets[grid_idx];
+    } else if (e.key == "]") {
+        if (grid_idx < grid_presets.length-1) { grid_idx++; }
+        grid_size = grid_presets[grid_idx];
+    } else if (e.key == "m") {
+        console.log(mousePosToDateTime());
+    } else if (e.key == "s") {
+        snap_to_grid = !snap_to_grid;
+        console.log("snap to grid: ", snap_to_grid);
+    } else if (e.key == "r") {
+        getEvents();
+        //window.location.reload();
     } else if (e.key == "n") {
         advanceOriginDate(7);
         getEvents();
@@ -354,6 +427,7 @@ function keydown(e) {
         setOriginDateFromToday();
         getEvents();
     } else if (e.key == "Escape") {
+        selected_event = null;
     } else if (e.key == "Delete") {
         if (selected_event !== null) {
             deleteEvent(selected_event.id);
@@ -369,9 +443,10 @@ function blur() {
 
 function resize() {
     canvas.width = window.innerWidth - 2;
-    canvas.height = window.innerHeight - 30; // TODO: calculate height of "Logged in as" div
-    w = canvas.width;
-    h = canvas.height;
+    canvas.height = window.innerHeight - canvas.offsetTop;
+    //canvas.height -= ADDRESS_BAR_HEIGHT; // TODO
+    can_w = canvas.width;
+    can_h = canvas.height;
 }
 
 // TODO: should this call getEvents()?
@@ -380,8 +455,10 @@ function setOriginDateFromToday() {
     origin_date.setDate((new Date()).getDate() - (new Date()).getDay());
     origin_date.setHours(0);
     origin_date.setMinutes(0);
+    origin_date.setSeconds(0);
+    origin_date.setMilliseconds(0);
     next_origin_date = new Date(origin_date.getTime());
-    next_origin_date.setDate(origin_date.getDate() + 7);
+    next_origin_date.setDate(origin_date.getDate() + DAYS_IN_WEEK);
 }
 
 function advanceOriginDate(n) {
@@ -400,17 +477,24 @@ $(function() {
     }
 
     Date.prototype.getSQLDate = function() {
-        let d = this;
+        const d = this;
         const month = `${d.getMonth()+1}`.lpad("0", 2);
         const _date = `${d.getDate()}`.lpad("0", 2);
         return `${d.getFullYear()}-${month}-${_date}`;
     }
 
     Date.prototype.getSQLTime = function() {
-        let d = this;
-        const hour = `${d.getHours()+1}`.lpad("0", 2);
+        const d = this;
+        const hour = `${d.getHours()}`.lpad("0", 2);
         const min = `${d.getMinutes()}`.lpad("0", 2);
         return `${hour}:${min}:00`;
+    }
+
+    Date.prototype.roundN = function(n) {
+        const orig_min = this.getMinutes();
+        const new_min = roundToMultiple(orig_min, n);
+        this.setMinutes(new_min);
+        return new_min - orig_min;
     }
 
     $canvas = $('#myCanvas');
@@ -441,22 +525,6 @@ function checkForUpdates() {
     });
 }
 
-//function createEventButtonFunc() {
-//    const eventTitle        = $('#eventTitle').val();
-//    const eventDescription  = $('#eventDescription').val();
-//    const eventLocation     = $('#eventLocation').val();
-//    const startDate         = $('#eventStartDate').val();
-//    const startTime         = $('#eventStartTime').val();
-//    const endDate           = $('#eventEndDate').val();
-//    const endTime           = $('#eventEndTime').val();
-//    _createEvent(eventTitle, eventDescription, eventLocation, startDate, startTime, endDate, endTime);
-//}
-
-//function deleteEventButtonFunc() {
-//    const eventID = $('#eventID').val();
-//    deleteEvent(eventID);
-//}
-
 function _createEvent(eventTitle, eventDescription, eventLocation, startDate, startTime, endDate, endTime) {
     $.post('mt_functions.php', {
         func: 'createEvent',
@@ -482,7 +550,8 @@ function getEvents() {
         end_date: next_origin_date.getSQLDate()
     })
     .done(function(data) {
-        events = [];
+        events = []; // TODO: instead of clearing, match fetched events with existing events by id
+        selected_event = null;
         for (const e of data) {
             const start_date = getDateFromSQL(e.start_date, e.start_time);
             const end_date = getDateFromSQL(e.end_date, e.end_time);
@@ -515,38 +584,39 @@ function modifyEvent(eventID, startTime, endTime) {
     });
 }
 
-let timer_num = 0;
+//let timer_num = 0;
+//
+//function test() {
+//    foo = {s: "hi", t: 4};
+//    bar = {s: "there", t: 5};
+//    baz = {s: "you", t: 3};
+//    console.log('%c Hello, world', 'color: orange; font-weight: bold;');
+//    console.table([foo, bar, baz], ['s','t']);
+//    console.dir(foo);
+//    console.dir(checkForUpdates);
+//    console.trace('my trace');
+//
+//    console.groupCollapsed();
+//        console.warn('this is a warning');
+//        console.info('this is info');
+//        console.error('this is an error');
+//        console.assert(1==2, '1 doesn\'t equal two');
+//    console.groupEnd()
+//    //console.clear();
+//    console.count();
+//
+//    const timer_str = `${timer_num}`;
+//    timer_num++;
+//    console.time(timer_str);
+//    fetch('mt_functions.php?func=checkForUpdates')
+//      .then(response => response.json())
+//      .then(data => {console.log(data); console.timeEnd(timer_str); });
+//
+//    return 'end of test';
+//}
 
-function test() {
-    foo = {s: "hi", t: 4};
-    bar = {s: "there", t: 5};
-    baz = {s: "you", t: 3};
-    console.log('%c Hello, world', 'color: orange; font-weight: bold;');
-    console.table([foo, bar, baz], ['s','t']);
-    console.dir(foo);
-    console.dir(checkForUpdates);
-    console.trace('my trace');
+</script>
 
-    console.groupCollapsed();
-        console.warn('this is a warning');
-        console.info('this is info');
-        console.error('this is an error');
-        console.assert(1==2, '1 doesn\'t equal two');
-    console.groupEnd()
-    //console.clear();
-    console.count();
-
-    const timer_str = `${timer_num}`;
-    timer_num++;
-    console.time(timer_str);
-    fetch('mt_functions.php?func=checkForUpdates')
-      .then(response => response.json())
-      .then(data => {console.log(data); console.timeEnd(timer_str); });
-
-    return 'end of test';
-}
-
-        </script>
     </body>
 
 </html>

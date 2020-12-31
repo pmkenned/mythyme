@@ -3,16 +3,26 @@ MyThyme
 A scheduling tool
 
 TODO:
+* Handle overlapping events
+* Add hotkeys for creating, selecting, and moving events
+* Allow for modifying title, description, location, etc.
+* Allow for selecting multiple events
+* Allow for dragging events across columns
+* To-do sidebar
+* Color events
+* Mitigate network latency
 * Undo functionality
-* Allow user to select events
-* Allow user to delete events
-* Allow user to create events
 * Handle events that span multiple days
 * Create multiple views
 * Each user should probably have their own table (database?)
+* Mobile support
 * Allow password reset
+* Handle case where session expires
 
 DONE:
+* Allow user to select events
+* Allow user to delete events
+* Allow user to create events
 * Create tables for testing purposes
 * Retrieve events from database
 
