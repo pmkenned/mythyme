@@ -7,6 +7,10 @@ if (!isset($_SESSION['username'])) {
     returnJsonHttpResponse(400, 'ERROR: username not defined');
 }
 
+// TODO: consider giving each error a unique number
+//       and having a message associated with each error type
+//       and returning the error number and msg as JSON
+
 /* ==== dispatch HTTP requests ==== */
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {

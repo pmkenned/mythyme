@@ -36,18 +36,73 @@ if (!isset($_SESSION['username'])) {
 
 "use strict";
 
+/**
+ * Draws a rounded rectangle using the current state of the canvas.
+ * If you omit the last three params, it will draw a rectangle
+ * outline with a 5 pixel border radius
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {Number} x The top left x coordinate
+ * @param {Number} y The top left y coordinate
+ * @param {Number} width The width of the rectangle
+ * @param {Number} height The height of the rectangle
+ * @param {Number} [radius = 5] The corner radius; It can also be an object 
+ *                 to specify different radii for corners
+ * @param {Number} [radius.tl = 0] Top left
+ * @param {Number} [radius.tr = 0] Top right
+ * @param {Number} [radius.br = 0] Bottom right
+ * @param {Number} [radius.bl = 0] Bottom left
+ * @param {Boolean} [fill = false] Whether to fill the rectangle.
+ * @param {Boolean} [stroke = true] Whether to stroke the rectangle.
+ */
+function roundRect(x, y, width, height, radius, fill, stroke) {
+    if (typeof stroke === 'undefined') {
+        stroke = true;
+    }
+    if (typeof radius === 'undefined') {
+        radius = 5;
+    }
+    if (typeof radius === 'number') {
+        radius = {tl: radius, tr: radius, br: radius, bl: radius};
+    } else {
+        var defaultRadius = {tl: 0, tr: 0, br: 0, bl: 0};
+        for (var side in defaultRadius) {
+            radius[side] = radius[side] || defaultRadius[side];
+        }
+    }
+    this.beginPath();
+    this.moveTo(x + radius.tl, y);
+    this.lineTo(x + width - radius.tr, y);
+    this.quadraticCurveTo(x + width, y, x + width, y + radius.tr);
+    this.lineTo(x + width, y + height - radius.br);
+    this.quadraticCurveTo(x + width, y + height, x + width - radius.br, y + height);
+    this.lineTo(x + radius.bl, y + height);
+    this.quadraticCurveTo(x, y + height, x, y + height - radius.bl);
+    this.lineTo(x, y + radius.tl);
+    this.quadraticCurveTo(x, y, x + radius.tl, y);
+    this.closePath();
+    if (fill) {
+        this.fill();
+    }
+    if (stroke) {
+        this.stroke();
+    }
+}
+
 const MIN_DY = 0;
 const EDGE_SIZE = 10;
 
 const LEFT_MOUSE_BUTTON = 0;
 const RIGHT_MOUSE_BUTTON = 2;
 
+let view_start_hour = 7;
+let view_end_hour = 22;
+const hours_in_view = () => (view_end_hour - view_start_hour) + 1;
+
 const HOURS_IN_DAY = 24;
 const DAYS_IN_WEEK = 7;
 
-// TODO: use these
-const VIEW_START_HOUR = 0;
-const VIEW_END_HOUR = 23;
+const INIT_TOP_ROW_PX = 50;
+let top_row_px = INIT_TOP_ROW_PX;
 
 const grid_presets = [1, 5, 10, 15, 20, 30, 60];
 let grid_idx = 3;
@@ -104,18 +159,18 @@ const monthNamesShort = [
 ];
 
 const colors = [
-    'hsl(0, 50%, 50%)',
-    'hsl(30, 50%, 50%)',
-    'hsl(60, 50%, 50%)',
-    'hsl(90, 50%, 50%)',
-    'hsl(120, 50%, 50%)',
-    'hsl(150, 50%, 50%)',
-    'hsl(180, 50%, 50%)',
-    'hsl(210, 50%, 50%)',
-    'hsl(240, 50%, 50%)',
-    'hsl(270, 50%, 50%)',
-    'hsl(300, 50%, 50%)',
-    'hsl(330, 50%, 50%)',
+    'hsl(0,   50%, 70%)',
+    'hsl(30,  50%, 70%)',
+    'hsl(60,  50%, 70%)',
+    'hsl(90,  50%, 70%)',
+    'hsl(120, 50%, 70%)',
+    'hsl(150, 50%, 70%)',
+    'hsl(180, 50%, 70%)',
+    'hsl(210, 50%, 70%)',
+    'hsl(240, 50%, 70%)',
+    'hsl(270, 50%, 70%)',
+    'hsl(300, 50%, 70%)',
+    'hsl(330, 50%, 70%)',
 ];
 
 let $canvas;
@@ -158,10 +213,11 @@ function getDateFromSQL(sqlDate, sqlTime) {
 const clientToCanvasY = y => y - canvas.offsetTop;
 const clientToCanvasX = x => x;
 const to_px = x => Math.round(x) + 0.5;
+const floorToMultiple = (x,n) => Math.floor(x/n)*n;
 const roundToMultiple = (x,n) => Math.round(x/n)*n;
-const colWidth = () => Math.round(can_w/DAYS_IN_WEEK);
-const hourHeight = () => Math.round(can_h/(HOURS_IN_DAY+1));
-const hoursMinsToY = (hour, min) => Math.round((hour+1+min/60.0) * hourHeight());
+const colWidth = () => Math.floor(can_w/DAYS_IN_WEEK);
+const hourHeight = () => Math.floor((can_h-top_row_px)/hours_in_view());
+const hoursMinsToY = (hour, min) => Math.round(top_row_px + ((hour-view_start_hour)+min/60.0) * hourHeight());
 
 const dyTodt = (dy) => {
     const hours = (dy < 0 ? -1 : 1)*Math.floor(Math.abs(dy)/hourHeight());
@@ -169,8 +225,8 @@ const dyTodt = (dy) => {
     return {hours, minutes};
 };
 
-const yToHour = y => Math.floor((y - hourHeight())/hourHeight());
-const yToMin = y => Math.round(60*(y % hourHeight())/hourHeight());
+const yToHour = y => Math.floor((y - top_row_px)/hourHeight()) + view_start_hour;
+const yToMin = y => Math.round(60*((y - top_row_px) % hourHeight())/hourHeight());
 
 const colToDate = (col) => {
     const d = new Date(origin_date.getTime());
@@ -193,6 +249,15 @@ const xyToDateTime = (x, y) => {
 const mousePosToDateTime = () => xyToDateTime(mouse_x, mouse_y);
 const minutesBetweenDates = (dt1, dt2) => Math.round((dt2.getTime() - dt1.getTime()) / (60*1000));
 
+const parseInt16 = s => parseInt(s, 16);
+const change_brightness = (color, percent) => {
+	const r = Math.min(Math.round(parseInt16(color.substr(1,2)) * percent/100.0), 255);
+	const g = Math.min(Math.round(parseInt16(color.substr(3,2)) * percent/100.0), 255);
+	const b = Math.min(Math.round(parseInt16(color.substr(5,2)) * percent/100.0), 255);
+	const rgb = r.toString(16).lpad("0", 2) + g.toString(16).lpad("0", 2) + b.toString(16).lpad("0", 2);
+	return ("#" + rgb);
+};
+
 function draw(timestamp) {
     ctx.clearRect(0, 0, can_w, can_h);
 
@@ -201,62 +266,45 @@ function draw(timestamp) {
     ctx.font = "15px Arial";
 
     // draw horizontal lines
-    for (let i = 0; i < HOURS_IN_DAY+1; i++) {
-        if (i > 0) {
+    for (let i = 0; i < hours_in_view(); i++) {
+        ctx.strokeStyle = "black";
 
+        const hour = i + view_start_hour;
+        const [oclock, am_pm] = ((hour) => {
+            let oclock = hour;
+            const am_pm = (oclock < 12) ? 'am' : 'pm';
+            oclock = (oclock == 0) ? 12 : oclock;
+            oclock = (oclock > 12) ? oclock-12 : oclock;
+            return [oclock, am_pm];
+        })(hour);
 
-            ctx.strokeStyle = "black";
-            const hour_y = to_px(i*hourHeight());
+        const hour_y = to_px(top_row_px + i*hourHeight());
+        ctx.beginPath();
+        ctx.moveTo(0,     hour_y);
+        ctx.lineTo(can_w, hour_y);
+        ctx.stroke();
+
+        ctx.strokeStyle = "hsl(0, 0%, 70%)";
+        ctx.setLineDash([]);
+        ctx.setLineDash([3, 1]);
+        const grid_per_hour = Math.round(60/grid_size); 
+        const grid_height = hourHeight()/grid_per_hour;
+        for (let j = 1; j < grid_per_hour; j++) {
+            const grid_y = to_px(hour_y + j*grid_height);
             ctx.beginPath();
-            ctx.moveTo(0,     hour_y);
-            ctx.lineTo(can_w, hour_y);
-            ctx.stroke();
-
-            ctx.strokeStyle = "hsl(0, 0%, 70%)";
-            ctx.setLineDash([]);
-            ctx.setLineDash([3, 1]);
-            const grid_per_hour = Math.round(60/grid_size); 
-            const grid_height = hourHeight()/grid_per_hour;
-            for (let j = 1; j < grid_per_hour; j++) {
-                const grid_y = to_px(hour_y + j*grid_height);
-                ctx.beginPath();
-                ctx.moveTo(0,     grid_y);
-                ctx.lineTo(can_w, grid_y);
-                ctx.stroke();
-            }
-            ctx.setLineDash([]);
-
-            // write hour on left-hand side
-            const [hour, am_pm] = ((row) => {
-                let hour = row-1;
-                const am_pm = (hour < 12) ? 'am' : 'pm';
-                hour = (hour == 0) ? 12 : hour;
-                hour = (hour > 12) ? hour-12 : hour;
-                return [hour, am_pm];
-            })(i);
-            ctx.fillText(`${hour} ${am_pm}`, 5, i*hourHeight()+15);
-        }
-    }
-
-    // draw vertical lines
-    ctx.strokeStyle = "black";
-    for (let i = 0; i < DAYS_IN_WEEK; i++) {
-        if (true || (i > 0)) {
-            ctx.beginPath();
-            ctx.moveTo(to_px(i*colWidth()), 0);
-            ctx.lineTo(to_px(i*colWidth()), can_h);
+            ctx.moveTo(0,     grid_y);
+            ctx.lineTo(can_w, grid_y);
             ctx.stroke();
         }
-        const col_date = new Date(origin_date.getTime());
-        col_date.setDate(col_date.getDate() + i);
-        const month = monthNamesShort[col_date.getMonth()];
-        const _date = col_date.getDate();
-        ctx.fillText(dayNamesShort[i], to_px(i*colWidth()), 20);
-        ctx.fillText(`${month}, ${_date}`, to_px(i*colWidth()), 40);
+        ctx.setLineDash([]);
+
+        // write hour on left-hand side
+        ctx.fillText(`${oclock} ${am_pm}`, 5, top_row_px + i*hourHeight()+15);
     }
 
     // draw events
     ctx.font = "10px Arial";
+    ctx.lineWidth = 2;
     for (const e of events) {
         if ((e.end_date >= origin_date) && (e.start_date <= next_origin_date)) {
             const [dest_start_date, dest_end_date] = getModifiedTimes(e);
@@ -267,7 +315,9 @@ function draw(timestamp) {
 
             ctx.fillStyle = (e.end_date.getTime() < Date.now()) ? "hsl(0, 0%, 80%)" : e.color;
             ctx.fillStyle = (e === selected_event) ? "cyan" : ctx.fillStyle;
-            ctx.fillRect(col*colWidth()+1, top_px, colWidth()-1, bot_px - top_px);
+            ctx.strokeStyle = change_brightness(ctx.fillStyle, 50);
+            //ctx.fillStrokeRect(col*colWidth()+1, top_px, colWidth()-1, bot_px - top_px);
+            ctx.roundRect(col*colWidth()+1, top_px, colWidth()-1, bot_px - top_px, 5, true, true);
 
             ctx.fillStyle = "white";
             ctx.fillText(e.title, (col+0.3)*colWidth(), (top_px+bot_px)/2);
@@ -281,6 +331,31 @@ function draw(timestamp) {
         const top_px = hoursMinsToY(new_event.start_date.getHours(), new_event.start_date.getMinutes());
         const bot_px = hoursMinsToY(new_event.end_date.getHours(), new_event.end_date.getMinutes());
         ctx.fillRect(col*colWidth()+1, top_px, colWidth()-1, bot_px - top_px);
+    }
+
+    // draw vertical lines and dates across top
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "black";
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, can_w, top_row_px-1);
+    ctx.beginPath();
+    ctx.moveTo(0, to_px(top_row_px));
+    ctx.lineTo(can_w, to_px(top_row_px));
+    ctx.stroke();
+    ctx.fillStyle = "black";
+    ctx.lineWidth = 1;
+    ctx.font = "15px Arial";
+    for (let i = 0; i < DAYS_IN_WEEK; i++) {
+        ctx.beginPath();
+        ctx.moveTo(to_px(i*colWidth()), 0);
+        ctx.lineTo(to_px(i*colWidth()), can_h);
+        ctx.stroke();
+        const col_date = new Date(origin_date.getTime());
+        col_date.setDate(col_date.getDate() + i);
+        const month = monthNamesShort[col_date.getMonth()];
+        const _date = col_date.getDate();
+        ctx.fillText(dayNamesShort[i], to_px(i*colWidth()), 20);
+        ctx.fillText(`${month}, ${_date}`, to_px(i*colWidth()), 40);
     }
 
     // draw current time
@@ -360,7 +435,7 @@ function setNewEventStartEnd() {
     sd.setDate(sd.getDate() + col);
     sd.setHours(yToHour(new_event_top));
     sd.setMinutes(yToMin(new_event_top));
-    if (snap_to_grid) { sd.roundN(grid_size); }
+    if (snap_to_grid) { sd.floorN(grid_size); }
     const ed = new Date(origin_date.getTime());
     ed.setDate(ed.getDate() + col); // TODO: use new_event_x_final?
     ed.setHours(yToHour(new_event_bot));
@@ -466,6 +541,17 @@ function keydown(e) {
         grid_size = grid_presets[grid_idx];
     } else if (e.key == "m") {
         console.log(mousePosToDateTime());
+    } else if (e.key == "f") {
+        if (view_start_hour == 0) {
+            view_start_hour = 7;
+            view_end_hour = 21;
+        } else if (view_start_hour == 7) {
+            view_start_hour = 16;
+            view_end_hour = 21;
+        } else {
+            view_start_hour = 0;
+            view_end_hour = 23;
+        }
     } else if (e.key == "s") {
         snap_to_grid = !snap_to_grid;
         console.log("snap to grid: ", snap_to_grid);
@@ -507,6 +593,8 @@ function resize() {
     //canvas.height -= ADDRESS_BAR_HEIGHT; // TODO
     can_w = canvas.width;
     can_h = canvas.height;
+    top_row_px = INIT_TOP_ROW_PX;
+    top_row_px += (can_h-top_row_px) - hourHeight()*hours_in_view();
 }
 
 function setOriginDateFromToday() {
@@ -526,6 +614,13 @@ function advanceOriginDate(n) {
 }
 
 $(function() {
+
+    CanvasRenderingContext2D.prototype.fillStrokeRect = function(x, y, w, h) {
+        this.fillRect(x, y, w, h);
+        this.strokeRect(x, y, w, h);
+    }
+
+    CanvasRenderingContext2D.prototype.roundRect = roundRect;
 
     String.prototype.lpad = function(padString, length) {
         let str = this;
@@ -547,6 +642,13 @@ $(function() {
         const hour = `${d.getHours()}`.lpad("0", 2);
         const min = `${d.getMinutes()}`.lpad("0", 2);
         return `${hour}:${min}:00`;
+    }
+
+    Date.prototype.floorN = function(n) {
+        const orig_min = this.getMinutes();
+        const new_min = floorToMultiple(orig_min, n);
+        this.setMinutes(new_min);
+        return new_min - orig_min;
     }
 
     Date.prototype.roundN = function(n) {
@@ -578,12 +680,20 @@ $(function() {
 
 });
 
+function reloadIfLoggedOut(jqXHR) {
+    if (jqXHR.responseJSON === "ERROR: username not defined") {
+        console.log('refreshing...');
+        window.location.reload();
+    }
+}
+
 function checkForUpdates() {
     $.get('mt_functions.php', {func: 'checkForUpdates'})
     .done(function(data) {
         console.log(data);
     }).fail(function(jqXHR, textStatus, errorThrown) {
         console.error(jqXHR.responseJSON);
+        reloadIfLoggedOut(jqXHR);
         getEvents();
     });
 }
@@ -604,6 +714,7 @@ function _createEvent(eventTitle, eventDescription, eventLocation, startDate, st
         getEvents(); // TODO: decide if this is the right way to do this
     }).fail(function(jqXHR, textStatus, errorThrown) {
         console.error(jqXHR.responseJSON);
+        reloadIfLoggedOut(jqXHR);
         getEvents();
     });
 }
@@ -629,7 +740,7 @@ function getEvents() {
         }
     }).fail(function(jqXHR, textStatus, errorThrown) {
         console.error(jqXHR.responseJSON);
-        getEvents();
+        reloadIfLoggedOut(jqXHR);
     });
 }
 
@@ -652,6 +763,7 @@ function deleteEvent(eventID) {
         //getEvents();
     }).fail(function(jqXHR, textStatus, errorThrown) {
         console.error(jqXHR.responseJSON);
+        reloadIfLoggedOut(jqXHR);
         getEvents();
     });
 }
@@ -668,6 +780,7 @@ function modifyEvent(eventID, startTime, endTime) {
         //getEvents();
     }).fail(function(jqXHR, textStatus, errorThrown) {
         console.error(jqXHR.responseJSON);
+        reloadIfLoggedOut(jqXHR);
         getEvents();
     });
 }
