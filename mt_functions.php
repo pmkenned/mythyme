@@ -55,17 +55,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         deleteEvent($event_id);
         break;
     case 'modifyEvent':
-        if (
-            !isset($_POST['event_id']) or 
-            !isset($_POST['start_time']) or 
-            !isset($_POST['end_time'])
-        ) {
-            returnJsonHttpResponse(400, 'ERROR: must specify event_id, new start_time and new end_time');
+        if (!isset($_POST['event_id'])) {
+            returnJsonHttpResponse(400, 'ERROR: must specify event ID');
         }
-        $event_id = $_POST['event_id'];
-        $new_start_time = $_POST['start_time'];
-        $new_end_time = $_POST['end_time'];
-        modifyEvent($event_id, $new_start_time, $new_end_time);
+        $event_id   = $_POST['event_id'];
+        $title      = isset($_POST['title']      ) ? $_POST['title']      : null;
+        $desc       = isset($_POST['desc']       ) ? $_POST['desc']       : null;
+        $location   = isset($_POST['location']   ) ? $_POST['location']   : null;
+        $start_date = isset($_POST['start_date'] ) ? $_POST['start_date'] : null;
+        $start_time = isset($_POST['start_time'] ) ? $_POST['start_time'] : null;
+        $end_date   = isset($_POST['end_date']   ) ? $_POST['end_date']   : null;
+        $end_time   = isset($_POST['end_time']   ) ? $_POST['end_time']   : null;
+        modifyEvent($event_id, $title, $desc, $location, $start_date, $start_time, $end_date, $end_time);
         break;
     default:
         returnJsonHttpResponse(400, 'ERROR: invalid function designation ' . $_POST['func']);
@@ -215,32 +216,57 @@ function deleteEvent($event_id)
     returnJsonHttpResponse(200, "event deleted");
 }
 
-// TODO: allow any combination of fields to be updated
-function modifyEvent($event_id, $new_start_time, $new_end_time)
+function modifyEvent($event_id, $new_title, $new_desc, $new_location, $new_start_date, $new_start_time, $new_end_date, $new_end_time)
 {
     global $conn;
     global $table;
 
     /* validate parameters */
 
-    if (empty($event_id) or empty($new_start_time) or empty($new_end_time)) {
-        returnJsonHttpResponse(400, "ERROR: must specify event_id, new start_time, and new end_time");
+    if (empty($event_id)) {
+        returnJsonHttpResponse(400, "ERROR: must specify event_id");
     }
+
+    // get current event properties
+    $query = "SELECT * FROM $table WHERE id = ?";
+    $stmt = mysqli_stmt_init($conn);
+    mysqli_stmt_prepare_e($stmt , $query);
+    mysqli_stmt_bind_param_e($stmt, "i", $event_id);
+    mysqli_stmt_execute_e($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $row = mysqli_fetch_assoc($result);
+    $curr_title     = $row['title'];
+    $curr_desc      = $row['description'];
+    $curr_location  = $row['location'];
+    $curr_start_date= $row['start_date'];
+    $curr_start_time= $row['start_time'];
+    $curr_end_date  = $row['end_date'];
+    $curr_end_time  = $row['end_time'];
+
+    $new_title      = ($new_title       === null) ? $curr_title         : $new_title;
+    $new_desc       = ($new_desc        === null) ? $curr_desc          : $new_desc;
+    $new_location   = ($new_location    === null) ? $curr_location      : $new_location;
+    $new_start_date = ($new_start_date  === null) ? $curr_start_date    : $new_start_date;
+    $new_start_time = ($new_start_time  === null) ? $curr_start_time    : $new_start_time;
+    $new_end_date   = ($new_end_date    === null) ? $curr_end_date      : $new_end_date;
+    $new_end_time   = ($new_end_time    === null) ? $curr_end_time      : $new_end_time;
+
+    // TODO: validate start and end dates as well
 
     if(!strtotime($new_start_time)) { returnJsonHttpResponse(400, "ERROR: invalid start_time '$new_start_time'"); }
     if(!strtotime($new_end_time)) { returnJsonHttpResponse(400, "ERROR: invalid end_time '$new_end_time'"); }
 
-    $start_time_sql = date_format(date_create($new_start_time), "H:i:s");
-    $end_time_sql = date_format(date_create($new_end_time), "H:i:s");
+    $new_start_time = date_format(date_create($new_start_time), "H:i:s");
+    $new_end_time = date_format(date_create($new_end_time), "H:i:s");
 
-    if ($end_time_sql <= $start_time_sql) { returnJsonHttpResponse(400, "ERROR: invalid start/end times"); }
+    if ($new_end_time <= $new_start_time) { returnJsonHttpResponse(400, "ERROR: invalid start/end times"); }
 
     /* update event */
 
-    $query = "UPDATE $table SET start_time = ?, end_time = ? WHERE id = ?";
+    $query = "UPDATE $table SET title = ?, description = ?, location = ?, start_date = ?, start_time = ?, end_date = ?, end_time = ? WHERE id = ?";
     $stmt = mysqli_stmt_init($conn);
     mysqli_stmt_prepare_e($stmt, $query);
-    mysqli_stmt_bind_param_e($stmt, "ssi", $start_time_sql, $end_time_sql, intval($event_id));
+    mysqli_stmt_bind_param_e($stmt, "sssssssi", $new_title, $new_desc, $new_location, $new_start_date, $new_start_time, $new_end_date, $new_end_time, intval($event_id));
     mysqli_stmt_execute_e($stmt);
     returnJsonHttpResponse(200, "event $event_id modified");
 }

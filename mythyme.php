@@ -17,7 +17,7 @@ if (!isset($_SESSION['username'])) {
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
     </head>
 
-    <body>
+    <body class="mythyme">
 
         <div class="topDiv">
             <div class="alignRight">
@@ -26,6 +26,7 @@ if (!isset($_SESSION['username'])) {
     echo 'Logged in as <span class="username">' . $_SESSION['username'] . '</span>';
 ?>
                 </span>
+                <a href="settings.php"><img class="icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAABHNCSVQICAgIfAhkiAAAAAFzUkdCAK7OHOkAAAAEZ0FNQQAAsY8L/GEFAAAACXBIWXMAAA7EAAAOxAGVKw4bAAACX0lEQVQ4T6WUv0tyURjHL2FoDonNRlBRIDi0ORUo9A84FNGW0OAgBDk02Cy5WCA0iTgHNogSItVSiZOD+KMiBM1BIfyFoPJ9ex7PtavvTXh5P3C8z/d7nvM9F+89V8IMKpUKVlZWMD8/j4WFBezv74uZ35kZuLS0BJfLhVKphHw+D0mSEIlExKw6MwMpoFqtCgU4HA4cHx8Lpc44MBwOY29vD9lslrXT6eRAJc/Pz+wVi0XWoVAIh4eHaDabrAlecXd3x41yCA2NRoNOp8NNSoLB4ESP3W7nWoYrMqLRKBvTvL+/4/r6GrFYTDh/Q//1yckJ11IymZzYQQk9YZpbW1vjK41UKiVmf/j4+BhnSP1+n8Xl5SUbMiaTCZubm0KNoDDqzeVywhlBfaurq1xz7OfnJzfe3t6yKb8iavh8PhgMBqEAi8WC5eVloUQgEQgExnd0cXGBra0trtVQbja98dy3wbRaLUmr1XK9uLgo1et1rv8ZSn16euKdXl5eeJfhcMh6MBiwVkLvnljG7OzsQKfTCfV9x19fX9ww/fToyJHfaDSEA6TTafYeHx+FM2J7extGo5FrSW5Sw+Px8Jxy3NzciNkf3t7exhn8S8Lv97NBlMtlUY14eHjgY6ekVquJCtDr9Tg7O+OaA+lrQqFWq3V8JzReX1+5SYnX653oodeGrjLjKpPJ4Pz8HN1ul/XV1dVEI3F/f89eu91mTafs9PQUdDhkJldMQYsLhYJQwMHBAY6OjoRSZ2ag2WzG7u4uEokE4vE4b/BfH9herwebzYb19XVsbGzA7XaLmd8A/gCvYsuBQ1/WDAAAAABJRU5ErkJggg==" alt="Settings" title="Settings" /></a>
                 <form action="logout.inc.php" method="POST"><button type="submit" name="logout-submit">Logout</button></form>
             </div>
         </div>
@@ -102,7 +103,9 @@ const HOURS_IN_DAY = 24;
 const DAYS_IN_WEEK = 7;
 
 const INIT_TOP_ROW_PX = 50;
+const INIT_LEFT_COL_PX = 45;
 let top_row_px = INIT_TOP_ROW_PX;
+let left_col_px = INIT_LEFT_COL_PX;
 
 const grid_presets = [1, 5, 10, 15, 20, 30, 60];
 let grid_idx = 3;
@@ -214,8 +217,9 @@ const clientToCanvasY = y => y - canvas.offsetTop;
 const clientToCanvasX = x => x;
 const to_px = x => Math.round(x) + 0.5;
 const floorToMultiple = (x,n) => Math.floor(x/n)*n;
+const ceilToMultiple = (x,n) => Math.ceil(x/n)*n;
 const roundToMultiple = (x,n) => Math.round(x/n)*n;
-const colWidth = () => Math.floor(can_w/DAYS_IN_WEEK);
+const colWidth = () => Math.floor((can_w-left_col_px)/DAYS_IN_WEEK);
 const hourHeight = () => Math.floor((can_h-top_row_px)/hours_in_view());
 const hoursMinsToY = (hour, min) => Math.round(top_row_px + ((hour-view_start_hour)+min/60.0) * hourHeight());
 
@@ -228,13 +232,30 @@ const dyTodt = (dy) => {
 const yToHour = y => Math.floor((y - top_row_px)/hourHeight()) + view_start_hour;
 const yToMin = y => Math.round(60*((y - top_row_px) % hourHeight())/hourHeight());
 
+const militaryTo12hr = hour => (hour == 0) ? 12 : ((hour > 12) ? hour-12 : hour);
+
+const getStartAndEndTimeString = (sdate, edate) => {
+    let start_time = `${militaryTo12hr(sdate.getHours())}`;
+    if (sdate.getMinutes() != 0) {
+        start_time += `:${sdate.getMinutes().toString().lpad("0",2)}`;
+    }
+    const s_ampm = (sdate.getHours() < 12) ? 'am' : 'pm';
+    let end_time = `${militaryTo12hr(edate.getHours())}`;
+    if (edate.getMinutes() != 0) {
+        end_time += `:${edate.getMinutes().toString().lpad("0",2)}`;
+    }
+    const e_ampm = (edate.getHours() < 12) ? 'am' : 'pm';
+    return (s_ampm === e_ampm) ? `${start_time} - ${end_time}${e_ampm}` : `${start_time}${s_ampm} - ${end_time}${e_ampm}`;
+};
+
 const colToDate = (col) => {
     const d = new Date(origin_date.getTime());
     d.setDate(d.getDate() + col);
     return d;
 };
 
-const xToCol = x => Math.floor(x / colWidth());
+// TODO: handle x - left_col_px < 0 case
+const xToCol = x => Math.floor((x-left_col_px)/colWidth());
 
 const xyToDateTime = (x, y) => {
     const col = xToCol(x);
@@ -250,12 +271,13 @@ const mousePosToDateTime = () => xyToDateTime(mouse_x, mouse_y);
 const minutesBetweenDates = (dt1, dt2) => Math.round((dt2.getTime() - dt1.getTime()) / (60*1000));
 
 const parseInt16 = s => parseInt(s, 16);
+// TODO: use HSL
 const change_brightness = (color, percent) => {
-	const r = Math.min(Math.round(parseInt16(color.substr(1,2)) * percent/100.0), 255);
-	const g = Math.min(Math.round(parseInt16(color.substr(3,2)) * percent/100.0), 255);
-	const b = Math.min(Math.round(parseInt16(color.substr(5,2)) * percent/100.0), 255);
-	const rgb = r.toString(16).lpad("0", 2) + g.toString(16).lpad("0", 2) + b.toString(16).lpad("0", 2);
-	return ("#" + rgb);
+    const r = Math.min(Math.round(parseInt16(color.substr(1,2)) * percent/100.0), 255);
+    const g = Math.min(Math.round(parseInt16(color.substr(3,2)) * percent/100.0), 255);
+    const b = Math.min(Math.round(parseInt16(color.substr(5,2)) * percent/100.0), 255);
+    const rgb = r.toString(16).lpad("0", 2) + g.toString(16).lpad("0", 2) + b.toString(16).lpad("0", 2);
+    return ("#" + rgb);
 };
 
 function draw(timestamp) {
@@ -269,21 +291,14 @@ function draw(timestamp) {
     for (let i = 0; i < hours_in_view(); i++) {
         ctx.strokeStyle = "black";
 
-        const hour = i + view_start_hour;
-        const [oclock, am_pm] = ((hour) => {
-            let oclock = hour;
-            const am_pm = (oclock < 12) ? 'am' : 'pm';
-            oclock = (oclock == 0) ? 12 : oclock;
-            oclock = (oclock > 12) ? oclock-12 : oclock;
-            return [oclock, am_pm];
-        })(hour);
-
+        // draw solid lines
         const hour_y = to_px(top_row_px + i*hourHeight());
         ctx.beginPath();
         ctx.moveTo(0,     hour_y);
         ctx.lineTo(can_w, hour_y);
         ctx.stroke();
 
+        // draw dashed lines
         ctx.strokeStyle = "hsl(0, 0%, 70%)";
         ctx.setLineDash([]);
         ctx.setLineDash([3, 1]);
@@ -292,35 +307,43 @@ function draw(timestamp) {
         for (let j = 1; j < grid_per_hour; j++) {
             const grid_y = to_px(hour_y + j*grid_height);
             ctx.beginPath();
-            ctx.moveTo(0,     grid_y);
+            ctx.moveTo(left_col_px, grid_y);
             ctx.lineTo(can_w, grid_y);
             ctx.stroke();
         }
         ctx.setLineDash([]);
 
         // write hour on left-hand side
+        const hour = i + view_start_hour;
+        const oclock = militaryTo12hr(hour);
+        const am_pm = (hour < 12) ? 'am' : 'pm';
         ctx.fillText(`${oclock} ${am_pm}`, 5, top_row_px + i*hourHeight()+15);
     }
 
     // draw events
-    ctx.font = "10px Arial";
+    // TODO: draw events that span multiple days
     ctx.lineWidth = 2;
     for (const e of events) {
         if ((e.end_date >= origin_date) && (e.start_date <= next_origin_date)) {
             const [dest_start_date, dest_end_date] = getModifiedTimes(e);
 
-            const col = e.start_date.getDay();
+            //const start_col = e.start_date.getDay();
+            //const end_col = e.end_date.getDay();
+            const start_col = dest_start_date.getDay();
             const top_px = hoursMinsToY(dest_start_date.getHours(), dest_start_date.getMinutes());
             const bot_px = hoursMinsToY(dest_end_date.getHours(),   dest_end_date.getMinutes());
 
             ctx.fillStyle = (e.end_date.getTime() < Date.now()) ? "hsl(0, 0%, 80%)" : e.color;
             ctx.fillStyle = (e === selected_event) ? "cyan" : ctx.fillStyle;
             ctx.strokeStyle = change_brightness(ctx.fillStyle, 50);
-            //ctx.fillStrokeRect(col*colWidth()+1, top_px, colWidth()-1, bot_px - top_px);
-            ctx.roundRect(col*colWidth()+1, top_px, colWidth()-1, bot_px - top_px, 5, true, true);
+            ctx.roundRect(left_col_px + start_col*colWidth()+1, top_px, colWidth()-1, bot_px - top_px, 5, true, true);
 
-            ctx.fillStyle = "white";
-            ctx.fillText(e.title, (col+0.3)*colWidth(), (top_px+bot_px)/2);
+            ctx.fillStyle = "black";
+            ctx.font = "bold 12px Arial";
+            ctx.fillText(e.title, left_col_px + (start_col+0.3)*colWidth(), (top_px+bot_px)/2);
+            ctx.font = "10px Arial";
+            const startEndStr = getStartAndEndTimeString(dest_start_date, dest_end_date);
+            ctx.fillText(startEndStr, left_col_px+(start_col+0.3)*colWidth(), (top_px+bot_px)/2 + 14);
         }
     }
 
@@ -330,32 +353,34 @@ function draw(timestamp) {
         const col = xToCol(new_event_x_init);
         const top_px = hoursMinsToY(new_event.start_date.getHours(), new_event.start_date.getMinutes());
         const bot_px = hoursMinsToY(new_event.end_date.getHours(), new_event.end_date.getMinutes());
-        ctx.fillRect(col*colWidth()+1, top_px, colWidth()-1, bot_px - top_px);
+        ctx.fillRect(left_col_px + col*colWidth()+1, top_px, colWidth()-1, bot_px - top_px);
     }
 
     // draw vertical lines and dates across top
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, can_w, top_row_px-1); // white box on top of events
+
     ctx.lineWidth = 3;
     ctx.strokeStyle = "black";
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, can_w, top_row_px-1);
     ctx.beginPath();
     ctx.moveTo(0, to_px(top_row_px));
     ctx.lineTo(can_w, to_px(top_row_px));
     ctx.stroke();
+
     ctx.fillStyle = "black";
     ctx.lineWidth = 1;
-    ctx.font = "15px Arial";
+    ctx.font = "bold 15px Arial";
     for (let i = 0; i < DAYS_IN_WEEK; i++) {
         ctx.beginPath();
-        ctx.moveTo(to_px(i*colWidth()), 0);
-        ctx.lineTo(to_px(i*colWidth()), can_h);
+        ctx.moveTo(to_px(left_col_px + i*colWidth()), 0);
+        ctx.lineTo(to_px(left_col_px + i*colWidth()), can_h);
         ctx.stroke();
         const col_date = new Date(origin_date.getTime());
         col_date.setDate(col_date.getDate() + i);
         const month = monthNamesShort[col_date.getMonth()];
         const _date = col_date.getDate();
-        ctx.fillText(dayNamesShort[i], to_px(i*colWidth()), 20);
-        ctx.fillText(`${month}, ${_date}`, to_px(i*colWidth()), 40);
+        ctx.fillText(dayNamesShort[i], to_px(left_col_px + i*colWidth()), 20);
+        ctx.fillText(`${month} ${_date}`, to_px(left_col_px + i*colWidth()), 40);
     }
 
     // draw current time
@@ -364,10 +389,12 @@ function draw(timestamp) {
     const line_y = hoursMinsToY(current_date.getHours(), current_date.getMinutes());
     ctx.lineWidth = 3;
     ctx.strokeStyle = "red";
-    ctx.beginPath();
-    ctx.moveTo(to_px(col*colWidth()), to_px(line_y));
-    ctx.lineTo(to_px((col+1)*colWidth()), to_px(line_y));
-    ctx.stroke();
+    if (current_date.getTime() >= origin_date.getTime() && current_date.getTime() <= next_origin_date.getTime()) {
+        ctx.beginPath();
+        ctx.moveTo(to_px(left_col_px + col*colWidth()), to_px(line_y));
+        ctx.lineTo(to_px(left_col_px + (col+1)*colWidth()), to_px(line_y));
+        ctx.stroke();
+    }
 
     window.requestAnimationFrame(draw);
 }
@@ -379,8 +406,12 @@ function setClickedEvent(x, y) {
     selected_top = false;
     selected_bot = false;
     for (const e of events) {
+        // skip checking events that are not in view
+        if ((e.end_date < origin_date) || (e.start_date > next_origin_date)) {
+            continue;
+        }
         const e_col = e.start_date.getDay();
-        const e_x_min = e_col*colWidth()+1;
+        const e_x_min = left_col_px + e_col*colWidth()+1;
         const e_x_max = e_x_min + colWidth();
         const e_y_min = hoursMinsToY(e.start_date.getHours(), e.start_date.getMinutes());
         const e_y_max = hoursMinsToY(e.end_date.getHours(), e.end_date.getMinutes());
@@ -395,6 +426,7 @@ function setClickedEvent(x, y) {
 }
 
 // TODO: prevent moving start time past end time and vice versa
+// TODO: allow for moving across columns
 function getModifiedTimes(e) {
     const dx = (e === selected_event && selected_event_moved) ? selected_event_x_final - selected_event_x_init : 0;
     const dy = (e === selected_event && selected_event_moved) ? selected_event_y_final - selected_event_y_init : 0;
@@ -410,6 +442,17 @@ function getModifiedTimes(e) {
     if (!selected_top) {
         dest_end_date.setHours(dest_end_date.getHours() + dt.hours);
         dest_end_date.setMinutes(dest_end_date.getMinutes() + dt.minutes);
+    }
+
+    if (e === selected_event && selected_event_moved) {
+        const init_col = xToCol(selected_event_x_init);
+        const final_col = xToCol(selected_event_x_final);
+        const dcol = final_col - init_col;
+
+        if (!selected_bot && !selected_top) {
+            dest_start_date.setDate(dest_start_date.getDate() + dcol);
+            dest_end_date.setDate(dest_end_date.getDate() + dcol);
+        }
     }
 
     // snap to grid
@@ -440,7 +483,7 @@ function setNewEventStartEnd() {
     ed.setDate(ed.getDate() + col); // TODO: use new_event_x_final?
     ed.setHours(yToHour(new_event_bot));
     ed.setMinutes(yToMin(new_event_bot));
-    if (snap_to_grid) { ed.roundN(grid_size); }
+    if (snap_to_grid) { ed.ceilN(grid_size); }
     new_event.start_date = sd;
     new_event.end_date = ed;
 }
@@ -470,6 +513,11 @@ function mousedown(e) {
         }
     } else if (mouse_right_btn_down) {
         setClickedEvent(mouse_down_x, mouse_down_y);
+        const new_title = prompt("Rename event", "");
+        if (new_title !== null) {
+            selected_event.title = new_title;
+            modifyEvent(selected_event.id, {title: new_title});
+        }
     }
 }
 
@@ -497,7 +545,12 @@ function mouseup(e) {
             const [dest_start_date, dest_end_date] = getModifiedTimes(selected_event);
             if (dest_start_date.getTime() !== selected_event.start_date.getTime() ||
                 dest_end_date.getTime() !== selected_event.end_date.getTime()) {
-                modifyEvent(selected_event.id, dest_start_date.getSQLTime(), dest_end_date.getSQLTime());
+                modifyEvent(selected_event.id, {
+                    start_date: dest_end_date.getSQLDate(),
+                    start_time: dest_start_date.getSQLTime(),
+                    end_date: dest_end_date.getSQLDate(),
+                    end_time: dest_end_date.getSQLTime(),
+                });
 
                 // actually move the event instead of displaying it offset
                 selected_event.start_date.setTime(dest_start_date.getTime());
@@ -542,6 +595,8 @@ function keydown(e) {
     } else if (e.key == "m") {
         console.log(mousePosToDateTime());
     } else if (e.key == "f") {
+        new_event_active = false;
+        selected_event = null;
         if (view_start_hour == 0) {
             view_start_hour = 7;
             view_end_hour = 21;
@@ -552,6 +607,25 @@ function keydown(e) {
             view_start_hour = 0;
             view_end_hour = 23;
         }
+        resize();
+    } else if (e.key == "ArrowDown") {
+        if (selected_event !== null) {
+            const dest_start_date = selected_event.start_date;
+            const dest_end_date = selected_event.end_date;
+            dest_start_date.setMinutes(dest_start_date.getMinutes()+grid_size);
+            dest_end_date.setMinutes(dest_end_date.getMinutes()+grid_size);
+            modifyEvent(selected_event.id, {start_time: dest_start_date.getSQLTime(), end_time: dest_end_date.getSQLTime()});
+        }
+    } else if (e.key == "ArrowUp") {
+        if (selected_event !== null) {
+            const dest_start_date = selected_event.start_date;
+            const dest_end_date = selected_event.end_date;
+            dest_start_date.setMinutes(dest_start_date.getMinutes()-grid_size);
+            dest_end_date.setMinutes(dest_end_date.getMinutes()-grid_size);
+            modifyEvent(selected_event.id, {start_time: dest_start_date.getSQLTime(), end_time: dest_end_date.getSQLTime()});
+        }
+    } else if (e.key == "ArrowLeft") {
+    } else if (e.key == "ArrowRight") {
     } else if (e.key == "s") {
         snap_to_grid = !snap_to_grid;
         console.log("snap to grid: ", snap_to_grid);
@@ -595,6 +669,8 @@ function resize() {
     can_h = canvas.height;
     top_row_px = INIT_TOP_ROW_PX;
     top_row_px += (can_h-top_row_px) - hourHeight()*hours_in_view();
+    left_col_px = INIT_LEFT_COL_PX;
+    left_col_px += (can_w-left_col_px) - colWidth()*DAYS_IN_WEEK;
 }
 
 function setOriginDateFromToday() {
@@ -647,6 +723,13 @@ $(function() {
     Date.prototype.floorN = function(n) {
         const orig_min = this.getMinutes();
         const new_min = floorToMultiple(orig_min, n);
+        this.setMinutes(new_min);
+        return new_min - orig_min;
+    }
+
+    Date.prototype.ceilN = function(n) {
+        const orig_min = this.getMinutes();
+        const new_min = ceilToMultiple(orig_min, n);
         this.setMinutes(new_min);
         return new_min - orig_min;
     }
@@ -768,16 +851,13 @@ function deleteEvent(eventID) {
     });
 }
 
-function modifyEvent(eventID, startTime, endTime) {
+function modifyEvent(eventID, fields) {
     $.post('mt_functions.php', {
         func: 'modifyEvent',
         event_id: eventID,
-        start_time: startTime,
-        end_time: endTime,
-    })
-    .done(function(data) {
+        ...fields
+    }).done(function(data) {
         console.log(data);
-        //getEvents();
     }).fail(function(jqXHR, textStatus, errorThrown) {
         console.error(jqXHR.responseJSON);
         reloadIfLoggedOut(jqXHR);

@@ -24,6 +24,8 @@ if (isset($_SESSION['username'])) {
             echo 'You are logged out.';
         } elseif ($_GET['msg'] == "signedUp") {
             echo 'Sign up successful.<br>You may now log in.';
+        } elseif ($_GET['msg'] == "passwordReset") {
+            echo 'A password reset link has been sent to your email.';
         }
     }
     if (isset($_GET['error'])) {
