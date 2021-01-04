@@ -204,6 +204,18 @@ let new_event = {};
 let new_event_x_init, new_event_y_init;
 let new_event_x_final, new_event_y_final;
 
+let zoom_active = false;
+let zoom_x_init,  zoom_y_init;
+let zoom_x_final, zoom_y_final;
+let zoom_start_hour, zoom_end_hour;
+
+let hotkeys_menu = false;
+
+const LIGHT_THEME = 0;
+const DARK_THEME = 1;
+const DEFAULT_THEME = LIGHT_THEME;
+let theme = DEFAULT_THEME;
+
 let events = [];
 
 function getDateFromSQL(sqlDate, sqlTime) {
@@ -283,13 +295,16 @@ const change_brightness = (color, percent) => {
 function draw(timestamp) {
     ctx.clearRect(0, 0, can_w, can_h);
 
+    ctx.fillStyle = (theme == LIGHT_THEME) ? "white" : "hsl(0, 0%, 20%)";
+    ctx.fillRect(0, 0, can_w, can_h);
+
     ctx.lineWidth = 1;
-    ctx.fillStyle = "black";
+    ctx.fillStyle = (theme == LIGHT_THEME) ? "black" : "hsl(0, 0%, 80%)";
     ctx.font = "15px Arial";
 
     // draw horizontal lines
     for (let i = 0; i < hours_in_view(); i++) {
-        ctx.strokeStyle = "black";
+        ctx.strokeStyle = (theme == LIGHT_THEME) ? "black" : "hsl(0, 0%, 80%)";
 
         // draw solid lines
         const hour_y = to_px(top_row_px + i*hourHeight());
@@ -299,7 +314,7 @@ function draw(timestamp) {
         ctx.stroke();
 
         // draw dashed lines
-        ctx.strokeStyle = "hsl(0, 0%, 70%)";
+        ctx.strokeStyle = (theme == LIGHT_THEME) ? "hsl(0, 0%, 70%)" : "hsl(0, 0%, 30%)";
         ctx.setLineDash([]);
         ctx.setLineDash([3, 1]);
         const grid_per_hour = Math.round(60/grid_size); 
@@ -333,12 +348,17 @@ function draw(timestamp) {
             const top_px = hoursMinsToY(dest_start_date.getHours(), dest_start_date.getMinutes());
             const bot_px = hoursMinsToY(dest_end_date.getHours(),   dest_end_date.getMinutes());
 
-            ctx.fillStyle = (e.end_date.getTime() < Date.now()) ? "hsl(0, 0%, 80%)" : e.color;
+            ctx.fillStyle = e.color;
+            const e_color = change_brightness(ctx.fillStyle, (theme == LIGHT_THEME) ? 100 : 50);
+
+            const past_color = (theme == LIGHT_THEME) ? "hsl(0, 0%, 80%)" : "hsl(0, 0%, 40%)";
+
+            ctx.fillStyle = (e.end_date.getTime() < Date.now()) ? past_color : e_color;
             ctx.fillStyle = (e === selected_event) ? "cyan" : ctx.fillStyle;
             ctx.strokeStyle = change_brightness(ctx.fillStyle, 50);
             ctx.roundRect(left_col_px + start_col*colWidth()+1, top_px, colWidth()-1, bot_px - top_px, 5, true, true);
 
-            ctx.fillStyle = "black";
+            ctx.fillStyle = (theme == LIGHT_THEME) ? "black" : "hsl(0, 0%, 80%)";
             ctx.font = "bold 12px Arial";
             ctx.fillText(e.title, left_col_px + (start_col+0.3)*colWidth(), (top_px+bot_px)/2);
             ctx.font = "10px Arial";
@@ -357,17 +377,17 @@ function draw(timestamp) {
     }
 
     // draw vertical lines and dates across top
-    ctx.fillStyle = "white";
+    ctx.fillStyle = (theme == LIGHT_THEME) ? "white" : "hsl(0, 0%, 20%)";
     ctx.fillRect(0, 0, can_w, top_row_px-1); // white box on top of events
 
     ctx.lineWidth = 3;
-    ctx.strokeStyle = "black";
+    ctx.strokeStyle = (theme == LIGHT_THEME) ? "black" : "hsl(0, 0%, 80%)";
     ctx.beginPath();
     ctx.moveTo(0, to_px(top_row_px));
     ctx.lineTo(can_w, to_px(top_row_px));
     ctx.stroke();
 
-    ctx.fillStyle = "black";
+    ctx.fillStyle = (theme == LIGHT_THEME) ? "black" : "hsl(0, 0%, 80%)";
     ctx.lineWidth = 1;
     ctx.font = "bold 15px Arial";
     for (let i = 0; i < DAYS_IN_WEEK; i++) {
@@ -394,6 +414,24 @@ function draw(timestamp) {
         ctx.moveTo(to_px(left_col_px + col*colWidth()), to_px(line_y));
         ctx.lineTo(to_px(left_col_px + (col+1)*colWidth()), to_px(line_y));
         ctx.stroke();
+    }
+
+    if (zoom_active) {
+        ctx.fillStyle = (theme == LIGHT_THEME) ? "hsla(0, 0%, 50%, 0.5)": "hsla(0, 0%, 100%, 0.5)";
+        const zoom_top_px = hoursMinsToY(zoom_start_hour, 0);
+        const zoom_bot_px = hoursMinsToY(zoom_end_hour, 0);
+        ctx.fillRect(0, zoom_top_px, left_col_px, zoom_bot_px - zoom_top_px);
+    }
+
+    if (hotkeys_menu) {
+        ctx.fillStyle = (theme == LIGHT_THEME) ? "hsla(0, 0%, 0%, 0.5)": "hsla(0, 0%, 100%, 0.5)";
+        ctx.fillRect(0, 0, can_w, can_h);
+        ctx.lineWidth = 3;
+        ctx.font = "bold 15px Arial";
+        ctx.fillStyle = (theme == LIGHT_THEME) ? "white" : "hsl(0, 0%, 20%)";
+        ctx.roundRect(can_w/3, can_h/3, can_w/3, can_h/3, 5, true, false);
+        ctx.fillStyle = (theme == LIGHT_THEME) ? "black" : "hsl(0, 0%, 80%)";
+        ctx.fillText("Hotkeys", can_w/3+15, can_h/3+30);
     }
 
     window.requestAnimationFrame(draw);
@@ -488,6 +526,13 @@ function setNewEventStartEnd() {
     new_event.end_date = ed;
 }
 
+function setZoomStartEnd() {
+    const zoom_top = Math.min(zoom_y_init, zoom_y_final);
+    const zoom_bot = Math.max(zoom_y_init, zoom_y_final);
+    zoom_start_hour = yToHour(zoom_top);
+    zoom_end_hour   = yToHour(zoom_bot)+1;
+}
+
 function mousedown(e) {
     mouse_left_btn_down = (e.button == LEFT_MOUSE_BUTTON) ? true : mouse_left_btn_down;
     mouse_right_btn_down = (e.button == RIGHT_MOUSE_BUTTON) ? true : mouse_right_btn_down;
@@ -496,15 +541,23 @@ function mousedown(e) {
     mouse_down_y = clientToCanvasY(e.clientY);
 
     if (mouse_left_btn_down) {
-        //selected_event = getClickedEvent(mouse_down_x, mouse_down_y);
         setClickedEvent(mouse_down_x, mouse_down_y);
         if (selected_event === null) {
-            new_event_active = true;
-            new_event_x_init = mouse_down_x;
-            new_event_y_init = mouse_down_y;
-            new_event_x_final = mouse_down_x;
-            new_event_y_final = mouse_down_y;
-            setNewEventStartEnd()
+            if (mouse_down_x > left_col_px && mouse_down_y > top_row_px) {
+                new_event_active = true;
+                new_event_x_init = mouse_down_x;
+                new_event_y_init = mouse_down_y;
+                new_event_x_final = mouse_down_x;
+                new_event_y_final = mouse_down_y;
+                setNewEventStartEnd()
+            } else if (mouse_down_x < left_col_px && mouse_down_y > top_row_px) {
+                zoom_active  = true;
+                zoom_x_init  = mouse_down_x;
+                zoom_y_init  = mouse_down_y;
+                zoom_x_final = mouse_down_x;
+                zoom_y_final = mouse_down_y;
+                setZoomStartEnd();
+            }
         } else {
             selected_event_x_init = mouse_down_x;
             selected_event_y_init = mouse_down_y;
@@ -513,10 +566,12 @@ function mousedown(e) {
         }
     } else if (mouse_right_btn_down) {
         setClickedEvent(mouse_down_x, mouse_down_y);
-        const new_title = prompt("Rename event", "");
-        if (new_title !== null) {
-            selected_event.title = new_title;
-            modifyEvent(selected_event.id, {title: new_title});
+        if (selected_event !== null) {
+            const new_title = prompt("Rename event", "");
+            if (new_title !== null) {
+                selected_event.title = new_title;
+                modifyEvent(selected_event.id, {title: new_title});
+            }
         }
     }
 }
@@ -532,7 +587,7 @@ function mouseup(e) {
                 const title = prompt("Enter a title for the event", "New Event");
                 if (title !== null) {
                     // TODO: add the event to events[] instead of using getEvents()
-                    _createEvent(title, "My Event", "Somewhere",
+                    _createEvent(title, "", "",
                         new_event.start_date.getSQLDate(),
                         new_event.start_date.getSQLTime(),
                         new_event.end_date.getSQLDate(),
@@ -540,8 +595,11 @@ function mouseup(e) {
                 }
             }
             new_event_active = false;
-        }
-        if (selected_event !== null) {
+        } else if (zoom_active) {
+            view_start_hour = zoom_start_hour;
+            view_end_hour = zoom_end_hour;
+            zoom_active = false;
+        } else if (selected_event !== null) {
             const [dest_start_date, dest_end_date] = getModifiedTimes(selected_event);
             if (dest_start_date.getTime() !== selected_event.start_date.getTime() ||
                 dest_end_date.getTime() !== selected_event.end_date.getTime()) {
@@ -569,23 +627,29 @@ function mousemove(e) {
     mouse_y = clientToCanvasY(e.clientY);
 
     if (mouse_left_btn_down) {
-        if (selected_event === null) {
+        if (new_event_active) {
             new_event_x_final = mouse_x;
             new_event_y_final = mouse_y;
             setNewEventStartEnd();
-        } else {
+        } else if (zoom_active) {
+            zoom_x_final = mouse_x;
+            zoom_y_final = mouse_y;
+            setZoomStartEnd();
+        } else if (selected_event_moved !== null) {
             selected_event_moved = true;
             selected_event_x_final = mouse_x;
             selected_event_y_final = mouse_y;
+        } else {
         }
     }
 }
 
 function keydown(e) {
     if (e.key == "?") {
-        fetch('getErrors.php')
-          .then(response => response.text())
-          .then(data => {console.log(data); });
+        hotkeys_menu = !hotkeys_menu;
+        //fetch('getErrors.php')
+        //  .then(response => response.text())
+        //  .then(data => {console.log(data); });
     } else if (e.key == "[") {
         if (grid_idx > 0) { grid_idx--; }
         grid_size = grid_presets[grid_idx];
@@ -628,10 +692,10 @@ function keydown(e) {
     } else if (e.key == "ArrowRight") {
     } else if (e.key == "s") {
         snap_to_grid = !snap_to_grid;
-        console.log("snap to grid: ", snap_to_grid);
+    } else if (e.key == "d") {
+        theme = 1 - theme; // TODO: make this robust
     } else if (e.key == "r") {
         getEvents();
-        //window.location.reload();
     } else if (e.key == "n") {
         advanceOriginDate(7);
         getEvents();
@@ -643,6 +707,7 @@ function keydown(e) {
         getEvents();
     } else if (e.key == "Escape") {
         selected_event = null;
+        hotkeys_menu = false;
     } else if (e.key == "Delete") {
         if (selected_event !== null) {
             deleteEvent(selected_event.id);
@@ -697,6 +762,14 @@ $(function() {
     }
 
     CanvasRenderingContext2D.prototype.roundRect = roundRect;
+
+    String.prototype.sum = function() {
+        let sum = 0;
+        for (let i = 0; i < this.length; i++) {
+            sum += this.charCodeAt(i);
+        }
+        return sum;
+    }
 
     String.prototype.lpad = function(padString, length) {
         let str = this;
@@ -814,7 +887,8 @@ function getEvents() {
             const start_date = getDateFromSQL(e.start_date, e.start_time);
             const end_date = getDateFromSQL(e.end_date, e.end_time);
             const found_event = events.find(item => item.id === e.id);
-            const color = colors[e.id % colors.length];
+            //const color = colors[e.id % colors.length];
+            const color = colors[e.title.sum() % colors.length];
             if (found_event === undefined) {
                 events.push({title: e.title, start_date: start_date, end_date: end_date, color: color, id: e.id });
             } else {
