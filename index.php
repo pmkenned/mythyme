@@ -24,8 +24,8 @@ if (isset($_SESSION['username'])) {
             echo 'You are logged out.';
         } elseif ($_GET['msg'] == "signedUp") {
             echo 'Sign up successful.<br>You may now log in.';
-        } elseif ($_GET['msg'] == "passwordReset") {
-            echo 'A password reset link has been sent to your email.';
+        } elseif ($_GET['msg'] == "passwordUpdated") {
+            echo 'You may now log in with your new password.';
         }
     }
     if (isset($_GET['error'])) {
@@ -40,12 +40,13 @@ if (isset($_SESSION['username'])) {
         }
     }
 ?>
-            <form action="login.inc.php" method="POST">
+            <form action="includes/login.inc.php" method="POST">
                 <input type="text" name="uid" placeholder="Username..." /><br />
                 <input type="password" name="pwd" placeholder="Password..." /><br />
                 <button type="submit" name="login-submit">Login</button>
             </form>
-            <a href="signup.php">Create Account</a>
+            <p><a href="reset_password.php">Forgot password?</a></p>
+            <p><a href="signup.php">Create Account</a></p>
         </div>
 
     </body>

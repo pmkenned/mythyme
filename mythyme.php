@@ -27,7 +27,7 @@ if (!isset($_SESSION['username'])) {
 ?>
                 </span>
                 <a href="settings.php"><img class="icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAABHNCSVQICAgIfAhkiAAAAAFzUkdCAK7OHOkAAAAEZ0FNQQAAsY8L/GEFAAAACXBIWXMAAA7EAAAOxAGVKw4bAAACX0lEQVQ4T6WUv0tyURjHL2FoDonNRlBRIDi0ORUo9A84FNGW0OAgBDk02Cy5WCA0iTgHNogSItVSiZOD+KMiBM1BIfyFoPJ9ex7PtavvTXh5P3C8z/d7nvM9F+89V8IMKpUKVlZWMD8/j4WFBezv74uZ35kZuLS0BJfLhVKphHw+D0mSEIlExKw6MwMpoFqtCgU4HA4cHx8Lpc44MBwOY29vD9lslrXT6eRAJc/Pz+wVi0XWoVAIh4eHaDabrAlecXd3x41yCA2NRoNOp8NNSoLB4ESP3W7nWoYrMqLRKBvTvL+/4/r6GrFYTDh/Q//1yckJ11IymZzYQQk9YZpbW1vjK41UKiVmf/j4+BhnSP1+n8Xl5SUbMiaTCZubm0KNoDDqzeVywhlBfaurq1xz7OfnJzfe3t6yKb8iavh8PhgMBqEAi8WC5eVloUQgEQgExnd0cXGBra0trtVQbja98dy3wbRaLUmr1XK9uLgo1et1rv8ZSn16euKdXl5eeJfhcMh6MBiwVkLvnljG7OzsQKfTCfV9x19fX9ww/fToyJHfaDSEA6TTafYeHx+FM2J7extGo5FrSW5Sw+Px8Jxy3NzciNkf3t7exhn8S8Lv97NBlMtlUY14eHjgY6ekVquJCtDr9Tg7O+OaA+lrQqFWq3V8JzReX1+5SYnX653oodeGrjLjKpPJ4Pz8HN1ul/XV1dVEI3F/f89eu91mTafs9PQUdDhkJldMQYsLhYJQwMHBAY6OjoRSZ2ag2WzG7u4uEokE4vE4b/BfH9herwebzYb19XVsbGzA7XaLmd8A/gCvYsuBQ1/WDAAAAABJRU5ErkJggg==" alt="Settings" title="Settings" /></a>
-                <form action="logout.inc.php" method="POST"><button type="submit" name="logout-submit">Logout</button></form>
+                <form action="includes/logout.inc.php" method="POST"><button type="submit" name="logout-submit">Logout</button></form>
             </div>
         </div>
 
@@ -419,7 +419,7 @@ function draw(timestamp) {
     if (zoom_active) {
         ctx.fillStyle = (theme == LIGHT_THEME) ? "hsla(0, 0%, 50%, 0.5)": "hsla(0, 0%, 100%, 0.5)";
         const zoom_top_px = hoursMinsToY(zoom_start_hour, 0);
-        const zoom_bot_px = hoursMinsToY(zoom_end_hour, 0);
+        const zoom_bot_px = hoursMinsToY(zoom_end_hour+1, 0);
         ctx.fillRect(0, zoom_top_px, left_col_px, zoom_bot_px - zoom_top_px);
     }
 
@@ -530,7 +530,8 @@ function setZoomStartEnd() {
     const zoom_top = Math.min(zoom_y_init, zoom_y_final);
     const zoom_bot = Math.max(zoom_y_init, zoom_y_final);
     zoom_start_hour = yToHour(zoom_top);
-    zoom_end_hour   = yToHour(zoom_bot)+1;
+    //zoom_end_hour   = yToHour(zoom_bot)+1;
+    zoom_end_hour   = yToHour(zoom_bot);
 }
 
 function mousedown(e) {
@@ -647,9 +648,10 @@ function mousemove(e) {
 function keydown(e) {
     if (e.key == "?") {
         hotkeys_menu = !hotkeys_menu;
-        //fetch('getErrors.php')
-        //  .then(response => response.text())
-        //  .then(data => {console.log(data); });
+    } else if (e.key == "z") {
+        fetch('getErrors.php')
+          .then(response => response.text())
+          .then(data => {console.log(data); });
     } else if (e.key == "[") {
         if (grid_idx > 0) { grid_idx--; }
         grid_size = grid_presets[grid_idx];
@@ -705,6 +707,8 @@ function keydown(e) {
     } else if (e.key == "t") {
         setOriginDateFromToday();
         getEvents();
+    } else if (e.key == "u") {
+        test();
     } else if (e.key == "Escape") {
         selected_event = null;
         hotkeys_menu = false;
@@ -937,6 +941,21 @@ function modifyEvent(eventID, fields) {
         reloadIfLoggedOut(jqXHR);
         getEvents();
     });
+}
+
+// TODO: implement interface testing
+function test() {
+    const mdown = new CustomEvent('mousedown');
+    mdown.button  = LEFT_MOUSE_BUTTON;
+    mdown.clientX = 300;
+    mdown.clientY = 300;
+    const mup = new CustomEvent('mouseup');
+    mup.button  = LEFT_MOUSE_BUTTON;
+    mup.clientX = 300;
+    mup.clientY = 300;
+    const my_element = document.getElementById('myCanvas');
+    window.setTimeout(() => {window.dispatchEvent(mdown); console.log('mdown');}, 500);
+    window.setTimeout(() => {window.dispatchEvent(mup); console.log('mup');}, 500);
 }
 
 //let timer_num = 0;

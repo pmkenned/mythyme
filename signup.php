@@ -39,7 +39,7 @@ if (isset($_GET['error'])) {
     }
 }
 ?>
-            <form action="signup.inc.php" method="POST">
+            <form action="includes/signup.inc.php" method="POST">
                 <input type="text" name="uid" placeholder="Username" />
                 <input type="text" name="mail" placeholder="E-mail" />
                 <input type="password" name="pwd" placeholder="Password" />

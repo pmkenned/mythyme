@@ -47,7 +47,7 @@ if (!mysqli_stmt_prepare($stmt, $sql)) {
 </style>
     </head>
 
-    <body class="settings">
+    <body class="maxwidth700">
 
         <h1 id="top">Settings</h1>
 
@@ -58,7 +58,7 @@ if (!mysqli_stmt_prepare($stmt, $sql)) {
 echo $username;
 ?> <img id="edit_username_img" class="icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAABHNCSVQICAgIfAhkiAAAAAFzUkdCAK7OHOkAAAAEZ0FNQQAAsY8L/GEFAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABaklEQVQ4T6WUO86CQBCABy1MiImxtDDhCBQ2NFZUHoDExngGD+ApCFBohYo2XoDGI1h5ARNCY3xAP//OspifgPLwS5bszOx+zCQEwIbEcYzj8RhHoxFer1eRRWxBA+73O3S7XVBVFWazGQyHQ7hcLklRiCvDZEjXVquVyCCeTieeo05rCVMZrel0KrIJlmUh67j6yI/HA/r9Pti2TU2A53kwmUxENam32+1qI7PDvCvTNEUmgXKGYaDv+3x/u93KR/4kS6EarSAIkpg/P/B8Pr/KttttRkZ8FJbJXNfNyYhC4ev1+irbbDaFMiInLJMVjfmfjDCKop9kxFtYJtvtdqUy4i2kw47jiCgL+4gryQguTC8Usd/vK8sIbtF1HXu9Xk56OBxqyQhuSEWLxeK9Px6PtWUEnM/nTGeDwYDHTWREa71egyzL0Ol0QJIkUBQF2L+O3gBMzrz1kJbLJYZhCPP5HDRNE+mmAPwBGGmDeoQgM2UAAAAASUVORK5CYII=" alt="Edit" title="Edit" />
             <div id="edit_username_div">
-                <form action="edit_username.inc.php" method="POST">
+                <form action="includes/edit_username.inc.php" method="POST">
                     <input type="text" name="username" placeholder="Username" />
                     <button type="submit" name="edit-username-submit">Submit</button>
                 </form>
@@ -70,7 +70,7 @@ echo $username;
 echo $email;
 ?> <img id="edit_email_img" class="icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAABHNCSVQICAgIfAhkiAAAAAFzUkdCAK7OHOkAAAAEZ0FNQQAAsY8L/GEFAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABaklEQVQ4T6WUO86CQBCABy1MiImxtDDhCBQ2NFZUHoDExngGD+ApCFBohYo2XoDGI1h5ARNCY3xAP//OspifgPLwS5bszOx+zCQEwIbEcYzj8RhHoxFer1eRRWxBA+73O3S7XVBVFWazGQyHQ7hcLklRiCvDZEjXVquVyCCeTieeo05rCVMZrel0KrIJlmUh67j6yI/HA/r9Pti2TU2A53kwmUxENam32+1qI7PDvCvTNEUmgXKGYaDv+3x/u93KR/4kS6EarSAIkpg/P/B8Pr/KttttRkZ8FJbJXNfNyYhC4ev1+irbbDaFMiInLJMVjfmfjDCKop9kxFtYJtvtdqUy4i2kw47jiCgL+4gryQguTC8Usd/vK8sIbtF1HXu9Xk56OBxqyQhuSEWLxeK9Px6PtWUEnM/nTGeDwYDHTWREa71egyzL0Ol0QJIkUBQF2L+O3gBMzrz1kJbLJYZhCPP5HDRNE+mmAPwBGGmDeoQgM2UAAAAASUVORK5CYII=" alt="Edit" title="Edit" />
             <div id="edit_email_div">
-                <form action="edit_email.inc.php" method="POST">
+                <form action="includes/edit_email.inc.php" method="POST">
                     <input type="text" name="email" placeholder="E-mail" />
                     <button type="submit" name="edit-email-submit">Submit</button>
                 </form>

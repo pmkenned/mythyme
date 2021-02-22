@@ -8,7 +8,7 @@ body.mythyme {
     overflow: hidden;
 }
 
-body.settings {
+body.maxwidth700 {
     width: 90%;
     max-width: 700px;
     margin: auto;
@@ -57,8 +57,16 @@ div.centerForm button {
     float: right;
 }
 
-.topDiv .alignRight span.loggedInAs {
+span.loggedInAs {
     margin-right: 0px;
+}
+
+span.username {
+    font-weight: bold;
+}
+
+.topDiv .alignRight form {
+    display: inline;
 }
 
 img.icon {
@@ -66,12 +74,4 @@ img.icon {
     padding: 0px 4px;
     position: relative;
     top: 2px;
-}
-
-.topDiv .alignRight span.username {
-    font-weight: bold;
-}
-
-.topDiv .alignRight form {
-    display: inline;
 }

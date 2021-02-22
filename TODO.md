@@ -1,8 +1,11 @@
 # TODO
 
+Current priority:
+
+- Each user should have their own table                                             3
+
 In Progress:
 
-- Allow password reset                                                              3
 - Correctly handle responses from server, check for errors                          1.5
 - Light/dark theme                                                                  1
 - '?' displays hot keys menu                                                        0.5
@@ -14,7 +17,7 @@ In Progress:
 
 TODO:
 
-- Each user should have their own table                                             3
+- Automated testing                                                                 5
 - Handle events that span multiple days                                             2
 - To-do sidebar                                                                     4
 - Allow for modifying description, location, etc.                                   2
@@ -49,6 +52,7 @@ Code improvements:
 
 DONE:
 
+- Allow password reset
 - Allow for modifying title
 - Allow for dragging events across columns
 - Handle case where session expires
@@ -67,9 +71,16 @@ Things to consider using:
 - Google Fonts
 - Base64 icons
 - Bootstrap
-- Less
+- Less, Sass
 - TypeScript
 - React
+
+Notes:
+
+    reset-password.php      == reset_password.php       // destination of "Forgot your password?" link, contains form
+    reset-request.inc.php   == reset_request.inc.php    // sends the email, redirects back to reset-password with message
+    create-new-password.php == new_password.php         // destination of link in email, contains form to set new password
+    reset-password.inc.php  == reset_password.inc.php   // updates password in database
 
 Things to research:
 
