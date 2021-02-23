@@ -51,11 +51,12 @@ $(function() {
         return response.json();
     }
 
-    async function createEventsTable() {
-        await postData("mt_functions.php", {func: 'createEventsTable', test: '1'})
-          .then(data => { console.log(data); } )
-          .catch(error => { console.error(error); } );
-    }
+    // TODO: remove this
+    //async function createEventsTable() {
+    //    await postData("mt_functions.php", {func: 'createEventsTable', test: '1'})
+    //      .then(data => { console.log(data); } )
+    //      .catch(error => { console.error(error); } );
+    //}
 
     async function checkForUpdates() {
         const query = new URLSearchParams();
@@ -131,7 +132,7 @@ $(function() {
 
     (async function () {
 
-        await createEventsTable();
+        //await createEventsTable();
 
         await checkForUpdates();
 

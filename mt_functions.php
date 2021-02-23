@@ -7,6 +7,7 @@ if (!isset($_SESSION['username'])) {
     returnJsonHttpResponse(400, 'ERROR: username not defined');
 }
 
+
 // TODO: consider giving each error a unique number
 //       and having a message associated with each error type
 //       and returning the error number and msg as JSON
@@ -19,12 +20,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         returnJsonHttpResponse(400, "ERROR: 'func' parameter not set");
     }
     $func = $_POST['func'];
-    $table = ($_POST['test']) ? 'test_events' : 'events';
+    $table = ($_POST['test']) ? 'test_events' : $_SESSION['username'] . '_events';
 
     switch($func) {
-    case 'createEventsTable':
-        createEventsTable();
-        break;
+    # TODO: remove references to this
+    #case 'createEventsTable':
+    #    createEventsTable();
+    #    break;
     case 'destroyEventsTable':
         destroyEventsTable();
         break;
@@ -79,7 +81,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         returnJsonHttpResponse(400, "ERROR: 'func' parameter not set");
     }
     $func = $_GET['func'];
-    $table = ($_GET['test']) ? 'test_events' : 'events';
+    $table = ($_GET['test']) ? 'test_events' : $_SESSION['username'] . '_events';
 
     switch($func) {
     case 'checkForUpdates':
@@ -104,38 +106,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 /* ==== API ==== */
 
-function createEventsTable()
-{
-    global $conn;
-    global $table;
-    $query = "CREATE TABLE `$table` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `title` tinytext NOT NULL,
-  `description` longtext,
-  `start_date` date DEFAULT NULL,
-  `start_time` time DEFAULT NULL,
-  `end_date` date DEFAULT NULL,
-  `end_time` time DEFAULT NULL,
-  `location` longtext,
-  `owner` int(11) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `owner` (`owner`)
-) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1";
-
-    $stmt = mysqli_stmt_init($conn);
-    mysqli_stmt_prepare_e($stmt, $query);
-    mysqli_stmt_execute_e($stmt);
-    returnJsonHttpResponse(200, "test_events table created");
-}
-
 function destroyEventsTable()
 {
     global $conn;
     global $table;
     $query = "DROP TABLE $table";
     $stmt = mysqli_stmt_init($conn);
-    mysqli_stmt_prepare_e($stmt, $query);
-    mysqli_stmt_execute_e($stmt);
+    mysqli_stmt_prepare_e(__LINE__, $stmt, $query);
+    mysqli_stmt_execute_e(__LINE__, $stmt);
     returnJsonHttpResponse(200, "test_events table destroyed");
 }
 
@@ -149,6 +127,9 @@ function createEvent($title, $desc, $location, $start_date, $start_time, $end_da
 {
     global $conn;
     global $table;
+
+    # ensure that the events table exists
+    createEventsTable($table);
 
     if (empty($title) or empty($start_date) or empty($start_time) or empty($end_date) or empty($end_time)) {
         returnJsonHttpResponse(400, "ERROR: must specify title, start_date, start_time, end_date, and end_time");
@@ -174,9 +155,9 @@ function createEvent($title, $desc, $location, $start_date, $start_time, $end_da
     $owner_id = 0;
 
     $stmt = mysqli_stmt_init($conn);
-    mysqli_stmt_prepare_e($stmt, $query);
-    mysqli_stmt_bind_param_e($stmt, "sssssssi", $title, $desc, $sdate_sql, $stime_sql, $edate_sql, $etime_sql, $location, $owner_id);
-    mysqli_stmt_execute_e($stmt);
+    mysqli_stmt_prepare_e(__LINE__, $stmt, $query);
+    mysqli_stmt_bind_param_e(__LINE__, $stmt, "sssssssi", $title, $desc, $sdate_sql, $stime_sql, $edate_sql, $etime_sql, $location, $owner_id);
+    mysqli_stmt_execute_e(__LINE__, $stmt);
 
     $event_id = mysqli_insert_id($conn);
 
@@ -187,11 +168,15 @@ function getEvents($begin_date, $end_date)
 {
     global $conn;
     global $table;
+
+    # ensure that the events table exists
+    createEventsTable($table);
+
     $query = "SELECT * FROM $table WHERE end_date >= ? AND start_date <= ?";
     $stmt = mysqli_stmt_init($conn);
-    mysqli_stmt_prepare_e($stmt , $query);
-    mysqli_stmt_bind_param_e($stmt, "ss", $begin_date, $end_date);
-    mysqli_stmt_execute_e($stmt);
+    mysqli_stmt_prepare_e(__LINE__, $stmt , $query);
+    mysqli_stmt_bind_param_e(__LINE__, $stmt, "ss", $begin_date, $end_date);
+    mysqli_stmt_execute_e(__LINE__, $stmt);
 
     $result = mysqli_stmt_get_result($stmt);
     $data = array();
@@ -210,9 +195,9 @@ function deleteEvent($event_id)
     global $table;
     $query = "DELETE FROM $table WHERE id = ?";
     $stmt = mysqli_stmt_init($conn);
-    mysqli_stmt_prepare_e($stmt, $query);
-    mysqli_stmt_bind_param_e($stmt, "i", intval($event_id));
-    mysqli_stmt_execute_e($stmt);
+    mysqli_stmt_prepare_e(__LINE__, $stmt, $query);
+    mysqli_stmt_bind_param_e(__LINE__, $stmt, "i", intval($event_id));
+    mysqli_stmt_execute_e(__LINE__, $stmt);
     returnJsonHttpResponse(200, "event deleted");
 }
 
@@ -220,6 +205,9 @@ function modifyEvent($event_id, $new_title, $new_desc, $new_location, $new_start
 {
     global $conn;
     global $table;
+
+    # ensure that the events table exists
+    createEventsTable($table);
 
     /* validate parameters */
 
@@ -230,9 +218,9 @@ function modifyEvent($event_id, $new_title, $new_desc, $new_location, $new_start
     // get current event properties
     $query = "SELECT * FROM $table WHERE id = ?";
     $stmt = mysqli_stmt_init($conn);
-    mysqli_stmt_prepare_e($stmt , $query);
-    mysqli_stmt_bind_param_e($stmt, "i", $event_id);
-    mysqli_stmt_execute_e($stmt);
+    mysqli_stmt_prepare_e(__LINE__, $stmt , $query);
+    mysqli_stmt_bind_param_e(__LINE__, $stmt, "i", $event_id);
+    mysqli_stmt_execute_e(__LINE__, $stmt);
     $result = mysqli_stmt_get_result($stmt);
     $row = mysqli_fetch_assoc($result);
     $curr_title     = $row['title'];
@@ -265,13 +253,35 @@ function modifyEvent($event_id, $new_title, $new_desc, $new_location, $new_start
 
     $query = "UPDATE $table SET title = ?, description = ?, location = ?, start_date = ?, start_time = ?, end_date = ?, end_time = ? WHERE id = ?";
     $stmt = mysqli_stmt_init($conn);
-    mysqli_stmt_prepare_e($stmt, $query);
-    mysqli_stmt_bind_param_e($stmt, "sssssssi", $new_title, $new_desc, $new_location, $new_start_date, $new_start_time, $new_end_date, $new_end_time, intval($event_id));
-    mysqli_stmt_execute_e($stmt);
+    mysqli_stmt_prepare_e(__LINE__, $stmt, $query);
+    mysqli_stmt_bind_param_e(__LINE__, $stmt, "sssssssi", $new_title, $new_desc, $new_location, $new_start_date, $new_start_time, $new_end_date, $new_end_time, intval($event_id));
+    mysqli_stmt_execute_e(__LINE__, $stmt);
     returnJsonHttpResponse(200, "event $event_id modified");
 }
 
 /* ==== helper functions ==== */
+
+function createEventsTable($table_name)
+{
+    global $conn;
+    $query = "CREATE TABLE IF NOT EXISTS `$table_name` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `title` tinytext NOT NULL,
+  `description` longtext,
+  `start_date` date DEFAULT NULL,
+  `start_time` time DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `end_time` time DEFAULT NULL,
+  `location` longtext,
+  `owner` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `owner` (`owner`)
+) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1";
+
+    $stmt = mysqli_stmt_init($conn);
+    mysqli_stmt_prepare_e(__LINE__, $stmt, $query);
+    mysqli_stmt_execute_e(__LINE__, $stmt);
+}
 
 function returnJsonHttpResponse($code, $data)
 {
@@ -283,21 +293,21 @@ function returnJsonHttpResponse($code, $data)
     exit();
 }
 
-function mysqli_stmt_prepare_e($stmt, $query) {
+function mysqli_stmt_prepare_e($line, $stmt, $query) {
     if (!mysqli_stmt_prepare($stmt, $query)) {
-        returnJsonHttpResponse(400, "mysqli_stmt_prepare failed");
+        returnJsonHttpResponse(400, "mysqli_stmt_prepare failed #$line: $query");
     }
 }
 
-function mysqli_stmt_bind_param_e($stmt, $types, ...$args) {
-    if (!mysqli_stmt_bind_param($stmt, $types, ...array_slice(func_get_args(),2))) {
-        returnJsonHttpResponse(500, "ERROR: mysqli_stmt_bind_param");
+function mysqli_stmt_bind_param_e($line, $stmt, $types, ...$args) {
+    if (!mysqli_stmt_bind_param($stmt, $types, ...array_slice(func_get_args(),3))) {
+        returnJsonHttpResponse(500, "ERROR: mysqli_stmt_bind_param #$line");
     }
 }
 
-function mysqli_stmt_execute_e($stmt) {
+function mysqli_stmt_execute_e($line, $stmt) {
     if (!mysqli_stmt_execute($stmt)) {
-        returnJsonHttpResponse(500, "ERROR: mysqli_stmt_execute");
+        returnJsonHttpResponse(500, "ERROR: mysqli_stmt_execute #$line");
     }
 }
 
