@@ -1,4 +1,6 @@
 <?php
+ini_set('session.save_path', '/home4/paulkenn/sessions');
+ini_set("session.gc_maxlifetime", 30);
 session_start();
 if (!isset($_SESSION['username'])) {
     header("Location: ../index.php");

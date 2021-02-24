@@ -25,6 +25,8 @@ if(isset($_POST['login-submit'])) {
                     header("Location: ../index.php?error=wrongpwd");
                     exit();
                 } elseif ($pwdCheck == true) {
+                    ini_set('session.save_path', '/home4/paulkenn/sessions');
+                    ini_set("session.gc_maxlifetime", 30);
                     session_start();
                     $_SESSION['userId'] = $row['id'];
                     $_SESSION['username'] = $row['username'];

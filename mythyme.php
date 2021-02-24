@@ -1,4 +1,6 @@
 <?php
+ini_set('session.save_path', '/home4/paulkenn/sessions');
+ini_set("session.gc_maxlifetime", 30);
 session_start();
 if (!isset($_SESSION['username'])) {
     header("Location: index.php");
@@ -10,7 +12,7 @@ if (!isset($_SESSION['username'])) {
     <head>
         <meta charset="utf-8" />
         <meta name="description" content="MyThyme" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <!-- <meta name="viewport" content="width=device-width, initial-scale=1" /> -->
         <title>MyThyme</title>
         <link rel="stylesheet" type="text/css" href="style.css">
         <link rel="icon" type="image/x-icon" href="/favicon.ico">

@@ -1,5 +1,7 @@
 <?php
 
+// sends the email, then redirects back to reset_password.php with message
+
 require '../../../php/dbh.inc.php';
 
 if (!isset($_POST['reset-request-submit'])) {

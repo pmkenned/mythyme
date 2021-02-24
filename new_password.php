@@ -1,5 +1,7 @@
 <?
 
+// this page is the destination of link in email, contains form to set new password
+
 $selector = $_GET["selector"];
 $validator = $_GET["validator"];
 

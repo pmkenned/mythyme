@@ -1,5 +1,7 @@
 <?php
 
+// updates password in database, then redirects to login page
+
 require '../../../php/dbh.inc.php';
 
 if (!isset($_POST['reset-password-submit'])) {
