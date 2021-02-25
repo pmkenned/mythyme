@@ -340,6 +340,7 @@ function draw(timestamp) {
     // draw events
     // TODO: draw events that span multiple days
     ctx.lineWidth = 2;
+    events.sort((a,b) => a.layer - b.layer);
     for (const e of events) {
         if ((e.end_date >= origin_date) && (e.start_date <= next_origin_date)) {
             const [dest_start_date, dest_end_date] = getModifiedTimes(e);
@@ -358,7 +359,13 @@ function draw(timestamp) {
             ctx.fillStyle = (e.end_date.getTime() < Date.now()) ? past_color : e_color;
             ctx.fillStyle = (e === selected_event) ? "cyan" : ctx.fillStyle;
             ctx.strokeStyle = change_brightness(ctx.fillStyle, 50);
-            ctx.roundRect(left_col_px + start_col*colWidth()+1, top_px, colWidth()-1, bot_px - top_px, 5, true, true);
+            ctx.roundRect(
+                left_col_px + start_col*colWidth()+1 + e.layer*colWidth()*0.1,
+                top_px,
+                0.9*colWidth() - e.layer*colWidth()*0.1,
+                bot_px - top_px, 5,
+                true, true
+            );
 
             ctx.fillStyle = (theme == LIGHT_THEME) ? "black" : "hsl(0, 0%, 80%)";
             ctx.font = "bold 12px Arial";
@@ -451,16 +458,69 @@ function setClickedEvent(x, y) {
             continue;
         }
         const e_col = e.start_date.getDay();
-        const e_x_min = left_col_px + e_col*colWidth()+1;
-        const e_x_max = e_x_min + colWidth();
+        const e_x_min = left_col_px + e_col*colWidth()+1 + e.layer*colWidth()*0.1;
+        const e_x_max = e_x_min + 0.9*colWidth() - e.layer*colWidth()*0.1;
         const e_y_min = hoursMinsToY(e.start_date.getHours(), e.start_date.getMinutes());
         const e_y_max = hoursMinsToY(e.end_date.getHours(), e.end_date.getMinutes());
 
         if ((x >= e_x_min && x <= e_x_max) && (y >= e_y_min && y <= e_y_max)) {
-            selected_event = e;
-            selected_top = (y >= e_y_min && y <= e_y_min + EDGE_SIZE) ? true : false;
-            selected_bot = (y <= e_y_max && y >= e_y_max - EDGE_SIZE) ? true : false;
-            break;
+            if ((selected_event === null) || (selected_event.layer < e.layer)) {
+                selected_event = e;
+                selected_top = (y >= e_y_min && y <= e_y_min + EDGE_SIZE) ? true : false;
+                selected_bot = (y <= e_y_max && y >= e_y_max - EDGE_SIZE) ? true : false;
+                //break;
+            }
+        }
+    }
+}
+
+function checkIfEventsOverlap(e1, e2) {
+    if ((e2.start_date.getTime() < e1.end_date.getTime()) && (e1.start_date.getTime() < e2.end_date.getTime())) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+function calcEventLayers() {
+    for (let d = 0; d < DAYS_IN_WEEK; d++) { // day in week
+
+        let day_in_week = new Date(origin_date.getTime());
+        day_in_week.setDate(origin_date.getDate() + d);
+        let next_day_in_week = new Date(origin_date.getTime());
+        next_day_in_week.setDate(origin_date.getDate() + d+1);
+
+        let eventsOnDay = [];
+        for (const e of events) {
+            // NOTE: doesn't handle events that span multiple days
+            if ((e.start_date.getTime() > day_in_week.getTime()) &&
+                (e.start_date.getTime() < next_day_in_week.getTime())) {
+                eventsOnDay.push(e);
+            }
+        }
+        eventsOnDay.sort((a,b) => a.start_date.getTime() - b.start_date.getTime());
+
+        for (const e of eventsOnDay) {
+            e.layer = 0;
+            let overlap;
+            do {
+                overlap = false;
+                let priorEventsInLayer = [];
+                for (const e2 of eventsOnDay) {
+                    if ((e2.layer === e.layer) && (e2.start_date.getTime() < e.start_date.getTime())) {
+                        priorEventsInLayer.push(e2);
+                    }
+                }
+                priorEventsInLayer.sort((a,b) => a.start_date.getTime() - b.start_date.getTime());
+
+                for (const e2 of priorEventsInLayer) {
+                    if (checkIfEventsOverlap(e, e2)) {
+                        overlap = true;
+                        e.layer++;
+                        break;
+                    }
+                }
+            } while(overlap);
         }
     }
 }
@@ -618,6 +678,7 @@ function mouseup(e) {
                 selected_event.end_date.setTime(dest_end_date.getTime());
                 selected_event_x_final = selected_event_x_init;
                 selected_event_y_final = selected_event_y_init;
+                calcEventLayers();
             }
         }
     } else if (e.button == RIGHT_MOUSE_BUTTON) {
@@ -710,7 +771,7 @@ function keydown(e) {
         setOriginDateFromToday();
         getEvents();
     } else if (e.key == "u") {
-        test();
+        //test();
     } else if (e.key == "Escape") {
         selected_event = null;
         hotkeys_menu = false;
@@ -896,11 +957,12 @@ function getEvents() {
             //const color = colors[e.id % colors.length];
             const color = colors[e.title.sum() % colors.length];
             if (found_event === undefined) {
-                events.push({title: e.title, start_date: start_date, end_date: end_date, color: color, id: e.id });
+                events.push({title: e.title, start_date: start_date, end_date: end_date, color: color, id: e.id, layer: 0 });
             } else {
                 Object.assign(found_event , {title: e.title, start_date: start_date, end_date: end_date, color: color, id: e.id});
             }
         }
+        calcEventLayers();
     }).fail(function(jqXHR, textStatus, errorThrown) {
         console.error(jqXHR.responseJSON);
         reloadIfLoggedOut(jqXHR);
@@ -923,6 +985,7 @@ function deleteEvent(eventID) {
     })
     .done(function(data) {
         console.log(data);
+        calcEventLayers();
         //getEvents();
     }).fail(function(jqXHR, textStatus, errorThrown) {
         console.error(jqXHR.responseJSON);
@@ -938,6 +1001,7 @@ function modifyEvent(eventID, fields) {
         ...fields
     }).done(function(data) {
         console.log(data);
+        calcEventLayers();
     }).fail(function(jqXHR, textStatus, errorThrown) {
         console.error(jqXHR.responseJSON);
         reloadIfLoggedOut(jqXHR);
