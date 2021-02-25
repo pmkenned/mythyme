@@ -3,7 +3,7 @@
 |Description                                                |Status  |Category|Hours|
 |-----------------------------------------------------------|--------|--------|-----|
 | Handle overlapping events                                 |Current |        |     |
-| Render better on mobile/small screens                     |Current |        |     |
+| Render better on mobile/small screens                     |Current |Mobile  |     |
 | Correctly handle responses from server, check for errors  |Progress|        | 1.5 |
 | Light/dark theme                                          |Progress|        | 1.0 |
 | '?' displays hot keys menu                                |Progress|        | 0.5 |
@@ -25,7 +25,6 @@
 | Use resize cursors when hovering over top and bottom      |TODO    |        | 0.5 |
 | Decide how to resize/move events that are very small      |TODO    |        | 1.0 |
 | Easy copying of events (e.g. shift-click-drag)            |TODO    |        | 1.5 |
-| Mobile support                                            |TODO    |        | 5.0 |
 | Zoom animations                                           |TODO    |        | 1.5 |
 | Offline mode                                              |TODO    |        | 6.0 |
 | Statistics                                                |TODO    |        | 2.0 |
