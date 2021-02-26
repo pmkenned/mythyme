@@ -104,7 +104,7 @@ const hours_in_view = () => (view_end_hour - view_start_hour) + 1;
 const HOURS_IN_DAY = 24;
 const DAYS_IN_WEEK = 7;
 
-const INIT_TOP_ROW_PX = 50;
+const INIT_TOP_ROW_PX = 40;
 const INIT_LEFT_COL_PX = 45;
 let top_row_px = INIT_TOP_ROW_PX;
 let left_col_px = INIT_LEFT_COL_PX;
@@ -306,9 +306,9 @@ function draw(timestamp) {
 
     // draw horizontal lines
     for (let i = 0; i < hours_in_view(); i++) {
-        ctx.strokeStyle = (theme == LIGHT_THEME) ? "black" : "hsl(0, 0%, 80%)";
 
         // draw solid lines
+        ctx.strokeStyle = (theme == LIGHT_THEME) ? "black" : "hsl(0, 0%, 40%)";
         const hour_y = to_px(top_row_px + i*hourHeight());
         ctx.beginPath();
         ctx.moveTo(0,     hour_y);
@@ -340,7 +340,6 @@ function draw(timestamp) {
     // draw events
     // TODO: draw events that span multiple days
     ctx.lineWidth = 2;
-    events.sort((a,b) => a.layer - b.layer);
     for (const e of events) {
         if ((e.end_date >= origin_date) && (e.start_date <= next_origin_date)) {
             const [dest_start_date, dest_end_date] = getModifiedTimes(e);
@@ -354,7 +353,7 @@ function draw(timestamp) {
             ctx.fillStyle = e.color;
             const e_color = change_brightness(ctx.fillStyle, (theme == LIGHT_THEME) ? 100 : 50);
 
-            const past_color = (theme == LIGHT_THEME) ? "hsl(0, 0%, 80%)" : "hsl(0, 0%, 40%)";
+            const past_color = (theme == LIGHT_THEME) ? "hsl(0, 0%, 80%)" : "hsl(0, 0%, 30%)";
 
             ctx.fillStyle = (e.end_date.getTime() < Date.now()) ? past_color : e_color;
             ctx.fillStyle = (e === selected_event) ? "cyan" : ctx.fillStyle;
@@ -363,16 +362,27 @@ function draw(timestamp) {
                 left_col_px + start_col*colWidth()+1 + e.layer*colWidth()*0.1,
                 top_px,
                 0.9*colWidth() - e.layer*colWidth()*0.1,
-                bot_px - top_px, 5,
+                bot_px - top_px, 8,
                 true, true
             );
 
+            const longerThan15Min = dest_end_date.getTime() - dest_start_date.getTime() > 1000*60*30;
+
             ctx.fillStyle = (theme == LIGHT_THEME) ? "black" : "hsl(0, 0%, 80%)";
-            ctx.font = "bold 12px Arial";
-            ctx.fillText(e.title, left_col_px + (start_col+0.3)*colWidth(), (top_px+bot_px)/2);
-            ctx.font = "10px Arial";
+            let px_offset;
+            if (longerThan15Min) {
+                ctx.font = "bold 20px Arial";
+                px_offset = 0;
+            } else {
+                ctx.font = "bold 14px Arial";
+                px_offset = 6;
+            }
+            ctx.fillText(e.title, left_col_px + (start_col+0.1)*colWidth(), (top_px+bot_px)/2 + px_offset);
+            ctx.font = "18px Arial";
             const startEndStr = getStartAndEndTimeString(dest_start_date, dest_end_date);
-            ctx.fillText(startEndStr, left_col_px+(start_col+0.3)*colWidth(), (top_px+bot_px)/2 + 14);
+            if (longerThan15Min) {
+                ctx.fillText(startEndStr, left_col_px+(start_col+0.1)*colWidth(), (top_px+bot_px)/2 + 20);
+            }
         }
     }
 
@@ -390,7 +400,7 @@ function draw(timestamp) {
     ctx.fillRect(0, 0, can_w, top_row_px-1); // white box on top of events
 
     ctx.lineWidth = 3;
-    ctx.strokeStyle = (theme == LIGHT_THEME) ? "black" : "hsl(0, 0%, 80%)";
+    ctx.strokeStyle = (theme == LIGHT_THEME) ? "black" : "hsl(0, 0%, 40%)";
     ctx.beginPath();
     ctx.moveTo(0, to_px(top_row_px));
     ctx.lineTo(can_w, to_px(top_row_px));
@@ -408,8 +418,8 @@ function draw(timestamp) {
         col_date.setDate(col_date.getDate() + i);
         const month = monthNamesShort[col_date.getMonth()];
         const _date = col_date.getDate();
-        ctx.fillText(dayNamesShort[i], to_px(left_col_px + i*colWidth()), 20);
-        ctx.fillText(`${month} ${_date}`, to_px(left_col_px + i*colWidth()), 40);
+        ctx.fillText(dayNamesShort[i],    to_px(left_col_px + 10 + i*colWidth()), 20);
+        ctx.fillText(`${month} ${_date}`, to_px(left_col_px + 10 + i*colWidth()), 40);
     }
 
     // draw current time
@@ -438,12 +448,38 @@ function draw(timestamp) {
         ctx.lineWidth = 3;
         ctx.font = "bold 15px Arial";
         ctx.fillStyle = (theme == LIGHT_THEME) ? "white" : "hsl(0, 0%, 20%)";
-        ctx.roundRect(can_w/3, can_h/3, can_w/3, can_h/3, 5, true, false);
+        ctx.roundRect(can_w/3, can_h/3, can_w/3, can_h/3, 8, true, false);
         ctx.fillStyle = (theme == LIGHT_THEME) ? "black" : "hsl(0, 0%, 80%)";
         ctx.fillText("Hotkeys", can_w/3+15, can_h/3+30);
     }
 
-    window.requestAnimationFrame(draw);
+    //window.requestAnimationFrame(draw);
+}
+
+// TODO: this code is redundant with setClickedEvent, eliminate redundancy
+function checkForEventHover(x, y) {
+    let hoverInfo = {};
+    hoverInfo.e = null;
+    for (const e of events) {
+        // skip checking events that are not in view
+        if ((e.end_date < origin_date) || (e.start_date > next_origin_date)) {
+            continue;
+        }
+        const e_col = e.start_date.getDay();
+        const e_x_min = left_col_px + e_col*colWidth()+1 + e.layer*colWidth()*0.1;
+        const e_x_max = e_x_min + 0.9*colWidth() - e.layer*colWidth()*0.1;
+        const e_y_min = Math.max(hoursMinsToY(e.start_date.getHours(), e.start_date.getMinutes()), top_row_px);
+        const e_y_max = hoursMinsToY(e.end_date.getHours(), e.end_date.getMinutes());
+
+        if ((x >= e_x_min && x <= e_x_max) && (y >= e_y_min && y <= e_y_max)) {
+            if ((hoverInfo.e === null) || (hoverInfo.e.layer < e.layer)) {
+                hoverInfo.e = e;
+                hoverInfo.top    = (y >= e_y_min && y <= e_y_min + EDGE_SIZE) ? true : false;
+                hoverInfo.bottom = (y <= e_y_max && y >= e_y_max - EDGE_SIZE) ? true : false;
+            }
+        }
+    }
+    return hoverInfo;
 }
 
 // TODO: encapsulate the calculations used here
@@ -460,7 +496,7 @@ function setClickedEvent(x, y) {
         const e_col = e.start_date.getDay();
         const e_x_min = left_col_px + e_col*colWidth()+1 + e.layer*colWidth()*0.1;
         const e_x_max = e_x_min + 0.9*colWidth() - e.layer*colWidth()*0.1;
-        const e_y_min = hoursMinsToY(e.start_date.getHours(), e.start_date.getMinutes());
+        const e_y_min = Math.max(hoursMinsToY(e.start_date.getHours(), e.start_date.getMinutes()), top_row_px);
         const e_y_max = hoursMinsToY(e.end_date.getHours(), e.end_date.getMinutes());
 
         if ((x >= e_x_min && x <= e_x_max) && (y >= e_y_min && y <= e_y_max)) {
@@ -483,6 +519,7 @@ function checkIfEventsOverlap(e1, e2) {
 }
 
 function calcEventLayers() {
+    events.sort((a,b) => a.layer - b.layer);
     for (let d = 0; d < DAYS_IN_WEEK; d++) { // day in week
 
         let day_in_week = new Date(origin_date.getTime());
@@ -681,6 +718,7 @@ function mouseup(e) {
                 calcEventLayers();
             }
         }
+        draw();
     } else if (e.button == RIGHT_MOUSE_BUTTON) {
     }
 }
@@ -705,6 +743,16 @@ function mousemove(e) {
             selected_event_y_final = mouse_y;
         } else {
         }
+        draw();
+    } else {
+        const hoverInfo = checkForEventHover(mouse_x, mouse_y);
+        if (hoverInfo.top) {
+            canvas.style.cursor = 'n-resize';
+        } else if (hoverInfo.bottom) {
+            canvas.style.cursor = 'n-resize';
+        } else {
+            canvas.style.cursor = 'default';
+        }
     }
 }
 
@@ -728,7 +776,7 @@ function keydown(e) {
         selected_event = null;
         if (view_start_hour == 0) {
             view_start_hour = 7;
-            view_end_hour = 21;
+            view_end_hour = 22;
         } else if (view_start_hour == 7) {
             view_start_hour = 16;
             view_end_hour = 21;
@@ -759,6 +807,11 @@ function keydown(e) {
         snap_to_grid = !snap_to_grid;
     } else if (e.key == "d") {
         theme = 1 - theme; // TODO: make this robust
+        if (theme == DARK_THEME) {
+            document.body.style.backgroundColor = "hsl(0, 0%, 20%)";
+        } else {
+            document.body.style.backgroundColor = "white";
+        }
     } else if (e.key == "r") {
         getEvents();
     } else if (e.key == "n") {
@@ -780,6 +833,7 @@ function keydown(e) {
             deleteEvent(selected_event.id);
         }
     }
+    draw();
 }
 
 function keyup(e) {
@@ -803,6 +857,7 @@ function resize() {
     top_row_px += (can_h-top_row_px) - hourHeight()*hours_in_view();
     left_col_px = INIT_LEFT_COL_PX;
     left_col_px += (can_w-left_col_px) - colWidth()*DAYS_IN_WEEK;
+    draw();
 }
 
 function setOriginDateFromToday() {
@@ -884,7 +939,7 @@ $(function() {
     $canvas = $('#myCanvas');
     canvas = $canvas[0];
     ctx = canvas.getContext('2d');
-    resize();
+    setOriginDateFromToday();
 
     $(window).mousedown(mousedown);
     $(window).mouseup(mouseup);
@@ -895,12 +950,11 @@ $(function() {
     $(window).contextmenu(contextmenu);
     $(window).resize(resize);
 
-    setOriginDateFromToday();
-
-    draw();
-
+    //draw();
+    setInterval(draw, 1000*60); // draw once a minute
     getEvents();
-
+    resize();
+    draw();
 });
 
 function reloadIfLoggedOut(jqXHR) {
@@ -935,6 +989,7 @@ function _createEvent(eventTitle, eventDescription, eventLocation, startDate, st
     .done(function(data) {
         console.log(data);
         getEvents(); // TODO: decide if this is the right way to do this
+        draw();
     }).fail(function(jqXHR, textStatus, errorThrown) {
         console.error(jqXHR.responseJSON);
         reloadIfLoggedOut(jqXHR);
@@ -963,6 +1018,7 @@ function getEvents() {
             }
         }
         calcEventLayers();
+        draw();
     }).fail(function(jqXHR, textStatus, errorThrown) {
         console.error(jqXHR.responseJSON);
         reloadIfLoggedOut(jqXHR);
@@ -987,6 +1043,7 @@ function deleteEvent(eventID) {
         console.log(data);
         calcEventLayers();
         //getEvents();
+        draw();
     }).fail(function(jqXHR, textStatus, errorThrown) {
         console.error(jqXHR.responseJSON);
         reloadIfLoggedOut(jqXHR);
@@ -1002,6 +1059,7 @@ function modifyEvent(eventID, fields) {
     }).done(function(data) {
         console.log(data);
         calcEventLayers();
+    draw();
     }).fail(function(jqXHR, textStatus, errorThrown) {
         console.error(jqXHR.responseJSON);
         reloadIfLoggedOut(jqXHR);
