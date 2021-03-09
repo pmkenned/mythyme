@@ -41,6 +41,7 @@
 | Allow edits to existing events                            |TODO    |Mobile  |     |
 | Allow creating new events                                 |TODO    |Mobile  |     |
 | Handle gestures (swipe left and right, etc)               |TODO    |Mobile  |     |
+| Use `require __DIR__ . "file.php";`                       |TODO    |Code    |     |
 | Rectangle class                                           |TODO    |Code    | 1.0 |
 | Coordinate class                                          |TODO    |Code    | 1.0 |
 | Renderable object class                                   |TODO    |Code    | 2.0 |
