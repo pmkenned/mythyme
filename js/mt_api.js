@@ -12,7 +12,7 @@ class MyThymeAPI {
         }).fail(function(jqXHR, textStatus, errorThrown) {
             console.error(jqXHR.responseJSON);
             reloadIfLoggedOut(jqXHR);
-            getEvents();
+            MyThymeAPI.getEvents();
         });
     }
 
@@ -29,12 +29,12 @@ class MyThymeAPI {
         })
         .done(function(data) {
             console.log(data);
-            getEvents(); // TODO: decide if this is the right way to do this
+            MyThymeAPI.getEvents(); // TODO: decide if this is the right way to do this
             draw();
         }).fail(function(jqXHR, textStatus, errorThrown) {
             console.error(jqXHR.responseJSON);
             reloadIfLoggedOut(jqXHR);
-            getEvents();
+            MyThymeAPI.getEvents();
         });
     }
 
@@ -83,12 +83,12 @@ class MyThymeAPI {
         .done(function(data) {
             console.log(data);
             calcEventLayers();
-            //getEvents();
+            //MyThymeAPI.getEvents();
             draw();
         }).fail(function(jqXHR, textStatus, errorThrown) {
             console.error(jqXHR.responseJSON);
             reloadIfLoggedOut(jqXHR);
-            getEvents();
+            MyThymeAPI.getEvents();
         });
     }
 
@@ -104,7 +104,7 @@ class MyThymeAPI {
         }).fail(function(jqXHR, textStatus, errorThrown) {
             console.error(jqXHR.responseJSON);
             reloadIfLoggedOut(jqXHR);
-            getEvents();
+            MyThymeAPI.getEvents();
         });
     }
 

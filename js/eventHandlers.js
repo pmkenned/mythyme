@@ -217,7 +217,7 @@ function contextmenu(e) {
 
 function resize() {
     canvas.width = window.innerWidth - 2;
-    canvas.height = window.innerHeight - canvas.offsetTop;
+    canvas.height = 1.0*window.innerHeight - canvas.offsetTop;
     //canvas.height -= ADDRESS_BAR_HEIGHT; // TODO
     can_w = canvas.width;
     can_h = canvas.height;
