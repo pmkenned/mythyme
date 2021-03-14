@@ -126,18 +126,38 @@ function mousemove(e) {
 function keydown(e) {
     if (e.key == "?") {
         hotkeys_menu = !hotkeys_menu;
-    } else if (e.key == "z") {
-        fetch('getErrors.php')
-          .then(response => response.text())
-          .then(data => {console.log(data); });
+    } else if (e.key == "d") {
+        currentView = dayView;
+    } else if (e.key == "w") {
+        currentView = weekView;
+    } else if (e.key == "m") {
+        currentView = monthView;
+    } else if (e.key == "q") {
+        currentView = quarterView;
+    } else if (e.key == "y") {
+        currentView = yearView;
+    } else if (e.key == "n") {
+        advanceOriginDate(7);
+        MyThymeAPI.getEvents();
+    } else if (e.key == "p") {
+        advanceOriginDate(-7);
+        MyThymeAPI.getEvents();
+    } else if (e.key == "t") {
+        setOriginDateFromToday();
+        MyThymeAPI.getEvents();
+    } else if (e.key == "Escape") {
+        selected_event = null;
+        hotkeys_menu = false;
+    } else if (e.key == "Delete") {
+        if (selected_event !== null) {
+            MyThymeAPI.deleteEvent(selected_event.id);
+        }
     } else if (e.key == "[") {
         if (grid_idx > 0) { grid_idx--; }
         grid_size = grid_presets[grid_idx];
     } else if (e.key == "]") {
         if (grid_idx < grid_presets.length-1) { grid_idx++; }
         grid_size = grid_presets[grid_idx];
-    } else if (e.key == "m") {
-        console.log(mousePosToDateTime());
     } else if (e.key == "f") {
         new_event_active = false;
         selected_event = null;
@@ -172,34 +192,19 @@ function keydown(e) {
     } else if (e.key == "ArrowRight") {
     } else if (e.key == "s") {
         snap_to_grid = !snap_to_grid;
-    } else if (e.key == "d") {
-        if (currentTheme == lightTheme) {
-            currentTheme = darkTheme;
-            document.body.style.backgroundColor = "hsl(0, 0%, 20%)";
-        } else {
-            currentTheme = lightTheme;
-            document.body.style.backgroundColor = "white";
-        }
+    } else if (e.key == "D") {
+        currentTheme = (currentTheme === darkTheme) ? lightTheme : darkTheme;
+        document.body.style.backgroundColor = currentTheme.bgColor;
     } else if (e.key == "r") {
         MyThymeAPI.getEvents();
-    } else if (e.key == "n") {
-        advanceOriginDate(7);
-        MyThymeAPI.getEvents();
-    } else if (e.key == "p") {
-        advanceOriginDate(-7);
-        MyThymeAPI.getEvents();
-    } else if (e.key == "t") {
-        setOriginDateFromToday();
-        MyThymeAPI.getEvents();
+    } else if (e.key == "M") {
+        console.log(mousePosToDateTime());
     } else if (e.key == "u") {
         //test();
-    } else if (e.key == "Escape") {
-        selected_event = null;
-        hotkeys_menu = false;
-    } else if (e.key == "Delete") {
-        if (selected_event !== null) {
-            MyThymeAPI.deleteEvent(selected_event.id);
-        }
+    } else if (e.key == "z") {
+        fetch('getErrors.php')
+          .then(response => response.text())
+          .then(data => {console.log(data); });
     }
     draw();
 }

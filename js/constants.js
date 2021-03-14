@@ -11,7 +11,9 @@ const INIT_LEFT_COL_PX = 45;
 
 const grid_presets = [1, 5, 10, 15, 20, 30, 60];
 
-const colors = [
+// TODO: Color class
+
+const eventColors = [
     'hsl(0,   50%, 70%)',
     'hsl(30,  50%, 70%)',
     'hsl(60,  50%, 70%)',
@@ -25,8 +27,6 @@ const colors = [
     'hsl(300, 50%, 70%)',
     'hsl(330, 50%, 70%)',
 ];
-
-// TODO: Color class
 
 const lightTheme = {
     bgColor:            "white",

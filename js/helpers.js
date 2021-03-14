@@ -105,6 +105,13 @@ function roundRect(x, y, width, height, radius, fill, stroke) {
     }
 }
 
+CanvasRenderingContext2D.prototype.fillStrokeRect = function(x, y, w, h) {
+    this.fillRect(x, y, w, h);
+    this.strokeRect(x, y, w, h);
+}
+
+CanvasRenderingContext2D.prototype.roundRect = roundRect;
+
 function getDateFromSQL(sqlDate, sqlTime) {
     let [year, month, _date] = sqlDate.split('-').map(Number);
     month--; // NOTE: JavaScript's Date class indexes months starting at 0
@@ -144,3 +151,54 @@ const change_brightness = (color, percent) => {
     const rgb = r.toString(16).lpad("0", 2) + g.toString(16).lpad("0", 2) + b.toString(16).lpad("0", 2);
     return ("#" + rgb);
 };
+
+String.prototype.sum = function() {
+    let sum = 0;
+    for (let i = 0; i < this.length; i++) {
+        sum += this.charCodeAt(i);
+    }
+    return sum;
+}
+
+String.prototype.lpad = function(padString, length) {
+    let str = this;
+    while (str.length < length) {
+        str = padString + str;
+    }
+    return str;
+}
+
+Date.prototype.getSQLDate = function() {
+    const d = this;
+    const month = `${d.getMonth()+1}`.lpad("0", 2);
+    const _date = `${d.getDate()}`.lpad("0", 2);
+    return `${d.getFullYear()}-${month}-${_date}`;
+}
+
+Date.prototype.getSQLTime = function() {
+    const d = this;
+    const hour = `${d.getHours()}`.lpad("0", 2);
+    const min = `${d.getMinutes()}`.lpad("0", 2);
+    return `${hour}:${min}:00`;
+}
+
+Date.prototype.floorN = function(n) {
+    const orig_min = this.getMinutes();
+    const new_min = floorToMultiple(orig_min, n);
+    this.setMinutes(new_min);
+    return new_min - orig_min;
+}
+
+Date.prototype.ceilN = function(n) {
+    const orig_min = this.getMinutes();
+    const new_min = ceilToMultiple(orig_min, n);
+    this.setMinutes(new_min);
+    return new_min - orig_min;
+}
+
+Date.prototype.roundN = function(n) {
+    const orig_min = this.getMinutes();
+    const new_min = roundToMultiple(orig_min, n);
+    this.setMinutes(new_min);
+    return new_min - orig_min;
+}

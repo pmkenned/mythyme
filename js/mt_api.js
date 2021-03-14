@@ -50,8 +50,8 @@ class MyThymeAPI {
                 const start_date = getDateFromSQL(e.start_date, e.start_time);
                 const end_date = getDateFromSQL(e.end_date, e.end_time);
                 const found_event = events.find(item => item.id === e.id);
-                //const color = colors[e.id % colors.length];
-                const color = colors[e.title.sum() % colors.length];
+                //const color = eventColors[e.id % eventColors.length];
+                const color = eventColors[e.title.sum() % eventColors.length];
                 if (found_event === undefined) {
                     events.push({title: e.title, start_date: start_date, end_date: end_date, color: color, id: e.id, layer: 0 });
                 } else {

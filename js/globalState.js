@@ -42,5 +42,6 @@ let zoom_start_hour, zoom_end_hour;
 let hotkeys_menu = false;
 
 let currentTheme = lightTheme;
+let currentView;
 
 let events = [];
