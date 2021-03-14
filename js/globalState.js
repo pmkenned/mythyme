@@ -41,7 +41,6 @@ let zoom_start_hour, zoom_end_hour;
 
 let hotkeys_menu = false;
 
-//let currentTheme = lightTheme;
-let theme = LIGHT_THEME;
+let currentTheme = lightTheme;
 
 let events = [];

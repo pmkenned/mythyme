@@ -26,5 +26,26 @@ const colors = [
     'hsl(330, 50%, 70%)',
 ];
 
-const LIGHT_THEME = 0;
-const DARK_THEME = 1;
+// TODO: Color class
+
+const lightTheme = {
+    bgColor:            "white",
+    fontColor:          "black",
+    lineColor:          "black",
+    dashedColor:        "hsl(0, 0%, 70%)",
+    eventBrightness:    "100",
+    pastColor:          "hsl(0, 0%, 80%)",
+    zoomColor:          "hsla(0, 0%, 50%, 0.5)",
+    shadowColor:        "hsla(0, 0%, 0%, 0.5)",
+};
+
+const darkTheme = {
+    bgColor:            "hsl(0, 0%, 20%)",
+    fontColor:          "hsl(0, 0%, 80%)",
+    lineColor:          "hsl(0, 0%, 40%)",
+    dashedColor:        "hsl(0, 0%, 30%)",
+    eventBrightness:    "50",
+    pastColor:          "hsl(0, 0%, 30%)",
+    zoomColor:          "hsla(0, 0%, 100%, 0.5)",
+    shadowColor:        "hsla(0, 0%, 100%, 0.5)",
+};

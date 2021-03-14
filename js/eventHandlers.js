@@ -173,8 +173,7 @@ function keydown(e) {
     } else if (e.key == "s") {
         snap_to_grid = !snap_to_grid;
     } else if (e.key == "d") {
-        theme = 1 - theme; // TODO: make this robust
-        if (theme == DARK_THEME) {
+        if (currentTheme == lightTheme) {
             currentTheme = darkTheme;
             document.body.style.backgroundColor = "hsl(0, 0%, 20%)";
         } else {
