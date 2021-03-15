@@ -41,6 +41,29 @@
 - [PHP session expiring after 24 minutes](https://www.reddit.com/r/PHP/comments/zko6e/php_session_expiring_after_24_minutes/)
 - [How do I expire a PHP session after 30 minutes?](https://stackoverflow.com/questions/520237/how-do-i-expire-a-php-session-after-30-minutes/1270960#1270960)
 
+## Thoughts
+
+The current view is an object that should be passed unhandled events such as clicks,
+keypresses and such.
+
+Goal:
+
+- Create an online scheduling tool similar to Google calendar but which the ability to add any specific features I want
+  - Emphasis on keyboard shortcuts for quickly rescheduling and modifying events; vim-like
+  - Easy to schedule and visualize many short events
+  - Features for managing recurring tasks and ongoing projects
+  - Fast, responsive, lightweight
+- How can I implement it?
+  - DOM
+  - SVG
+  - HTML canvas
+- requestAnimationFrame
+  - Performance issues
+  - Mostly not changing
+  - Do I only render when state changes occur?
+    - Keeping track of this seems bug-prone
+    - Doing a full-render at 60fps seems wasteful
+
 ## Code Notes
 
 ```

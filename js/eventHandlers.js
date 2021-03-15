@@ -5,7 +5,7 @@ function mousedown(e) {
 }
 
 function mouseup(e) {
-    currentView.mousedown(e);
+    currentView.mouseup(e);
 }
 
 function mousemove(e) {
