@@ -38,12 +38,13 @@ class MyThymeAPI {
         });
     }
 
-    static getEvents() {
+    static getEvents(begin_date, end_date) {
         // TODO: use fetch API
         $.get('mt_functions.php', {
             func: 'getEvents',
-            begin_date: origin_date.getSQLDate(),
-            end_date: next_origin_date.getSQLDate()
+            // TODO: avoid accessing private member variables
+            begin_date: currentView.origin_date.getSQLDate(),
+            end_date: currentView.next_origin_date.getSQLDate()
         })
         .done(function(data) {
             for (const e of data) {
@@ -58,7 +59,7 @@ class MyThymeAPI {
                     Object.assign(found_event , {title: e.title, start_date: start_date, end_date: end_date, color: color, id: e.id});
                 }
             }
-            calcEventLayers();
+            currentView._calcEventLayers(); // TODO
             draw();
         }).fail(function(jqXHR, textStatus, errorThrown) {
             console.error(jqXHR.responseJSON);
@@ -82,7 +83,7 @@ class MyThymeAPI {
         })
         .done(function(data) {
             console.log(data);
-            calcEventLayers();
+            currentView._calcEventLayers(); // TODO
             //MyThymeAPI.getEvents();
             draw();
         }).fail(function(jqXHR, textStatus, errorThrown) {
@@ -99,7 +100,7 @@ class MyThymeAPI {
             ...fields
         }).done(function(data) {
             console.log(data);
-            calcEventLayers();
+            currentView._calcEventLayers(); // TODO
         draw();
         }).fail(function(jqXHR, textStatus, errorThrown) {
             console.error(jqXHR.responseJSON);

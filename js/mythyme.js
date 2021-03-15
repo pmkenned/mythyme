@@ -9,7 +9,9 @@ $(function() {
     $canvas = $('#myCanvas');
     canvas = $canvas[0];
     ctx = canvas.getContext('2d');
-    setOriginDateFromToday();
+
+    currentView = weekView;
+    currentView.setOriginDateFromToday();
 
     $(window).mousedown(mousedown);
     $(window).mouseup(mouseup);
@@ -19,8 +21,6 @@ $(function() {
     $(window).blur(blur);
     $(window).contextmenu(contextmenu);
     $(window).resize(resize);
-
-    currentView = weekView;
 
     //draw();
     setInterval(draw, 1000*60); // draw once a minute

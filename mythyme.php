@@ -38,8 +38,8 @@ if (!isset($_SESSION['username'])) {
         <script src="js/constants.js"></script>
         <script src="js/globalState.js"></script>
         <script src="js/helpers.js"></script>
-        <script src="js/CalendarView.js"></script>
         <script src="js/mt_api.js"></script>
+        <script src="js/CalendarView.js"></script>
         <script src="js/eventHandlers.js"></script>
         <script src="js/mythyme.js"></script>
 
