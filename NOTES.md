@@ -113,4 +113,19 @@ function test() {
     window.setTimeout(() => {window.dispatchEvent(mup); console.log('mup');}, 500);
 }
 
+// found when researching JavaScript singletons
+Object.freeze(instance);
+port default instance;
+
+// found when researching JavaScript abstract base classes
+const required = function(){ throw new Error("Implement!"); };
+
+const InputInterface = {
+    render: required,
+    value: required
+};
+
+function Input(){}
+Input.prototype = Object.create(InputInterface);
+
 ```

@@ -1,33 +1,15 @@
 "use strict";
 
-class Rect {
-    constructor(x, y, w, h) {
-        this.x = x;
-        this.y = y;
-        this.w = w;
-        this.h = h;
-    }
-}
-
 class RenderableEvent {
 
     constructor() {
-        this.rectangles = [];
-    }
-
-    reset() {
-        this.rectangles = [];
-    }
-
-    addRect(r) {
-        this.rectangles.push(r);
+        this._rectangles = [];
     }
 }
 
 
 // What should this class implement? Probably a render() method. And a way to
 // convert between <mouse position> and <date & time>. 
-//
 class CalendarView {
 
     constructor() {
@@ -60,11 +42,11 @@ class WeekView extends CalendarView {
 
         this.snap_to_grid = true;
 
+        this.originOffsetFromSunday = 0;
         this.origin_date;
         this.next_origin_date;
 
-        this.mouse_x, this.mouse_y;
-        this.mouse_down_x, this.mouse_down_y;
+        this.mousePosition = new Point();
 
         this.mouse_left_btn_down = false;
         this.mouse_right_btn_down = false;
@@ -73,17 +55,17 @@ class WeekView extends CalendarView {
         this.selected_top = false;
         this.selected_bot = false;
         this.selected_event_moved = false;
-        this.selected_event_x_init, this.selected_event_y_init;
-        this.selected_event_x_final, this.selected_event_y_final;
+        this.selectedEventInit = new Point();
+        this.selectedEventFinal = new Point();
 
         this.new_event_active = false;
         this.new_event = {};
-        this.new_event_x_init, this.new_event_y_init;
-        this.new_event_x_final, this.new_event_y_final;
+        this.newEventInitPosition = new Point();
+        this.newEventFinalPosition = new Point();
 
         this.zoom_active = false;
-        this.zoom_x_init,  this.zoom_y_init;
-        this.zoom_x_final, this.zoom_y_final;
+        this.zoomInit = new Point();
+        this.zoomFinal = new Point();
         this.zoom_start_hour, this.zoom_end_hour;
     }
 
@@ -120,7 +102,9 @@ class WeekView extends CalendarView {
         return _date;
     }
 
-    _mousePosToDateTime() { return this._xyToDateTime(this.mouse_x, this.mouse_y); }
+    _mousePosToDateTime() {
+        return this._xyToDateTime(this.mousePosition.x, this.mousePosition.y);
+    }
 
     // TODO: this code is redundant with _setClickedEvent, eliminate redundancy
     _checkForEventHover(x, y) {
@@ -231,8 +215,8 @@ class WeekView extends CalendarView {
     // TODO: prevent moving start time past end time and vice versa
     // TODO: allow for moving across columns
     _getModifiedTimes(e) {
-        const dx = (e === this.selected_event && this.selected_event_moved) ? this.selected_event_x_final - this.selected_event_x_init : 0;
-        const dy = (e === this.selected_event && this.selected_event_moved) ? this.selected_event_y_final - this.selected_event_y_init : 0;
+        const dx = (e === this.selected_event && this.selected_event_moved) ? this.selectedEventFinal.x - this.selectedEventInit.x : 0;
+        const dy = (e === this.selected_event && this.selected_event_moved) ? this.selectedEventFinal.y - this.selectedEventInit.y : 0;
         const dt = this._dyTodt(dy);
 
         const dest_start_date = new Date(e.start_date.getTime());
@@ -248,8 +232,8 @@ class WeekView extends CalendarView {
         }
 
         if (e === this.selected_event && this.selected_event_moved) {
-            const init_col = this._xToCol(this.selected_event_x_init);
-            const final_col = this._xToCol(this.selected_event_x_final);
+            const init_col = this._xToCol(this.selectedEventInit.x);
+            const final_col = this._xToCol(this.selectedEventFinal.x);
             const dcol = final_col - init_col;
 
             if (!this.selected_bot && !this.selected_top) {
@@ -274,9 +258,9 @@ class WeekView extends CalendarView {
     }
 
     _setNewEventStartEnd() {
-        const new_event_top = Math.min(this.new_event_y_init, this.new_event_y_final);
-        const new_event_bot = Math.max(this.new_event_y_init, this.new_event_y_final);
-        const col = this._xToCol(this.new_event_x_init);
+        const new_event_top = Math.min(this.newEventInitPosition.y, this.newEventFinalPosition.y);
+        const new_event_bot = Math.max(this.newEventInitPosition.y, this.newEventFinalPosition.y);
+        const col = this._xToCol(this.newEventInitPosition.x);
         const sd = new Date(this.origin_date.getTime());
         sd.setDate(sd.getDate() + col);
         sd.setHours(this._yToHour(new_event_top));
@@ -292,8 +276,8 @@ class WeekView extends CalendarView {
     }
 
     _setZoomStartEnd() {
-        const zoom_top = Math.min(zoom_y_init, zoom_y_final);
-        const zoom_bot = Math.max(zoom_y_init, zoom_y_final);
+        const zoom_top = Math.min(this.zoomInit.y, this.zoomFinal.y);
+        const zoom_bot = Math.max(this.zoomInit.y, this.zoomFinal.y);
         this.zoom_start_hour = this._yToHour(zoom_top);
         //this.zoom_end_hour   = this._yToHour(zoom_bot)+1;
         this.zoom_end_hour   = this._yToHour(zoom_bot);
@@ -308,11 +292,16 @@ class WeekView extends CalendarView {
         this.origin_date.setMilliseconds(0);
         this.next_origin_date = new Date(this.origin_date.getTime());
         this.next_origin_date.setDate(this.origin_date.getDate() + DAYS_IN_WEEK);
+        this.originOffsetFromSunday = 0;
     }
 
     _advanceOriginDate(n) {
         this.origin_date.setDate(this.origin_date.getDate() + n);
         this.next_origin_date.setDate(this.next_origin_date.getDate() + n);
+        this.originOffsetFromSunday = (this.originOffsetFromSunday + n) % DAYS_IN_WEEK;
+        //while (this.originOffsetFromSunday < 0) {
+        //    this.originOffsetFromSunday += DAYS_IN_WEEK;
+        //}
     }
 
     render() {
@@ -366,9 +355,7 @@ class WeekView extends CalendarView {
             if ((e.end_date >= this.origin_date) && (e.start_date <= this.next_origin_date)) {
                 const [dest_start_date, dest_end_date] = this._getModifiedTimes(e);
 
-                //const start_col = e.start_date.getDay();
-                //const end_col = e.end_date.getDay();
-                const start_col = dest_start_date.getDay();
+                const start_col = (dest_start_date.getDay() - this.originOffsetFromSunday) % DAYS_IN_WEEK;
                 const top_px = this._hoursMinsToY(dest_start_date.getHours(), dest_start_date.getMinutes());
                 const bot_px = this._hoursMinsToY(dest_end_date.getHours(),   dest_end_date.getMinutes());
 
@@ -411,7 +398,7 @@ class WeekView extends CalendarView {
         // draw new event if active
         ctx.fillStyle = "red";
         if (this.new_event_active) {
-            const col = this._xToCol(this.new_event_x_init);
+            const col = this._xToCol(this.newEventInitPosition.x);
             const top_px = this._hoursMinsToY(this.new_event.start_date.getHours(), this.new_event.start_date.getMinutes());
             const bot_px = this._hoursMinsToY(this.new_event.end_date.getHours(), this.new_event.end_date.getMinutes());
             ctx.fillRect(this.left_col_px + col*this._colWidth()+1, top_px, this._colWidth()-1, bot_px - top_px);
@@ -440,13 +427,14 @@ class WeekView extends CalendarView {
             col_date.setDate(col_date.getDate() + i);
             const month = monthNamesShort[col_date.getMonth()];
             const _date = col_date.getDate();
-            ctx.fillText(dayNamesShort[i],    to_px(this.left_col_px + 10 + i*this._colWidth()), 20);
-            ctx.fillText(`${month} ${_date}`, to_px(this.left_col_px + 10 + i*this._colWidth()), 40);
+            const dayName = dayNamesShort[(i + this.originOffsetFromSunday) % DAYS_IN_WEEK];
+            ctx.fillText(dayName,               to_px(this.left_col_px + 10 + i*this._colWidth()), 20);
+            ctx.fillText(`${month} ${_date}`,   to_px(this.left_col_px + 10 + i*this._colWidth()), 40);
         }
 
         // draw current time
         const current_date = new Date();
-        const col = current_date.getDay();
+        const col = (current_date.getDay() - this.originOffsetFromSunday) % DAYS_IN_WEEK;
         const line_y = this._hoursMinsToY(current_date.getHours(), current_date.getMinutes());
         ctx.lineWidth = 3;
         ctx.strokeStyle = "red";
@@ -481,13 +469,13 @@ class WeekView extends CalendarView {
 
     keydown(e) {
         if (e.key == "n") {
-            this._advanceOriginDate(7);
+            this._advanceOriginDate(DAYS_IN_WEEK);
             MyThymeAPI.getEvents();
         } else if (e.key == "p") {
-            this._advanceOriginDate(-7);
+            this._advanceOriginDate(-DAYS_IN_WEEK);
             MyThymeAPI.getEvents();
         } else if (e.key == "t") {
-            setOriginDateFromToday();
+            this.setOriginDateFromToday();
             MyThymeAPI.getEvents();
         } else if (e.key == "Escape") {
             this.selected_event = null;
@@ -499,11 +487,13 @@ class WeekView extends CalendarView {
             }
 
         } else if (e.key == "[") {
-            if (this.grid_idx > 0) { this.grid_idx--; }
-            this.grid_size = grid_presets[this.grid_idx];
+            this._advanceOriginDate(-1);
+            //if (this.grid_idx > 0) { this.grid_idx--; }
+            //this.grid_size = grid_presets[this.grid_idx];
         } else if (e.key == "]") {
-            if (this.grid_idx < grid_presets.length-1) { this.grid_idx++; }
-            this.grid_size = grid_presets[this.grid_idx];
+            this._advanceOriginDate(1);
+            //if (this.grid_idx < grid_presets.length-1) { this.grid_idx++; }
+            //this.grid_size = grid_presets[this.grid_idx];
 
         } else if (e.key == "f") {
             this.new_event_active = false;
@@ -550,35 +540,28 @@ class WeekView extends CalendarView {
         this.mouse_left_btn_down = (e.button == LEFT_MOUSE_BUTTON) ? true : this.mouse_left_btn_down;
         this.mouse_right_btn_down = (e.button == RIGHT_MOUSE_BUTTON) ? true : this.mouse_right_btn_down;
 
-        this.mouse_down_x = clientToCanvasX(e.clientX);
-        this.mouse_down_y = clientToCanvasY(e.clientY);
+        const mouseDownPosition = clientToCanvas(e.clientX, e.clientY);
 
         if (this.mouse_left_btn_down) {
-            this._setClickedEvent(this.mouse_down_x, this.mouse_down_y);
+            this._setClickedEvent(mouseDownPosition.x, mouseDownPosition.y);
             if (this.selected_event === null) {
-                if (this.mouse_down_x > this.left_col_px && this.mouse_down_y > this.top_row_px) {
+                if (mouseDownPosition.x > this.left_col_px && mouseDownPosition.y > this.top_row_px) {
                     this.new_event_active = true;
-                    this.new_event_x_init = this.mouse_down_x;
-                    this.new_event_y_init = this.mouse_down_y;
-                    this.new_event_x_final = this.mouse_down_x;
-                    this.new_event_y_final = this.mouse_down_y;
+                    this.newEventInitPosition = Object.assign({}, mouseDownPosition);
+                    this.newEventFinalPosition = Object.assign({}, mouseDownPosition);
                     this._setNewEventStartEnd()
-                } else if (this.mouse_down_x < this.left_col_px && this.mouse_down_y > this.top_row_px) {
+                } else if (mouseDownPosition.x < this.left_col_px && mouseDownPosition.y > this.top_row_px) {
                     this.zoom_active  = true;
-                    this.zoom_x_init  = this.mouse_down_x;
-                    this.zoom_y_init  = this.mouse_down_y;
-                    this.zoom_x_final = this.mouse_down_x;
-                    this.zoom_y_final = this.mouse_down_y;
+                    this.zoomInit = Object.assign({}, mouseDownPosition);
+                    this.zoomFinal = Object.assign({}, mouseDownPosition);
                     this._setZoomStartEnd();
                 }
             } else {
-                this.selected_event_x_init = this.mouse_down_x;
-                this.selected_event_y_init = this.mouse_down_y;
-                this.selected_event_x_final = this.mouse_down_x;
-                this.selected_event_y_final = this.mouse_down_y;
+                this.selectedEventInit = Object.assign({}, mouseDownPosition);
+                this.selectedEventFinal = Object.assign({}, mouseDownPosition);
             }
         } else if (this.mouse_right_btn_down) {
-            this._setClickedEvent(this.mouse_down_x, this.mouse_down_y);
+            this._setClickedEvent(mouseDownPosition.x, mouseDownPosition.y);
             if (this.selected_event !== null) {
                 const new_title = prompt("Rename event", "");
                 if (new_title !== null) {
@@ -595,7 +578,7 @@ class WeekView extends CalendarView {
 
         if (e.button == LEFT_MOUSE_BUTTON) {
             if (this.new_event_active) {
-                const dy = this.new_event_y_final - this.new_event_y_init;
+                const dy = this.newEventFinalPosition.y - this.newEventInitPosition.y;
                 if (Math.abs(dy) > MIN_DY) {
                     const title = prompt("Enter a title for the event", "New Event");
                     if (title !== null) {
@@ -626,8 +609,8 @@ class WeekView extends CalendarView {
                     // actually move the event instead of displaying it offset
                     this.selected_event.start_date.setTime(dest_start_date.getTime());
                     this.selected_event.end_date.setTime(dest_end_date.getTime());
-                    this.selected_event_x_final = this.selected_event_x_init;
-                    this.selected_event_y_final = this.selected_event_y_init;
+                    this.selectedEventFinal.x = this.selectedEventInit.x;
+                    this.selectedEventFinal.y = this.selectedEventInit.y;
                     this._calcEventLayers();
                 }
             }
@@ -637,27 +620,24 @@ class WeekView extends CalendarView {
     }
 
     mousemove(e) {
-        this.mouse_x = clientToCanvasX(e.clientX);
-        this.mouse_y = clientToCanvasY(e.clientY);
+        this.mousePosition = clientToCanvas(e.clientX, e.clientY);
 
         if (this.mouse_left_btn_down) {
             if (this.new_event_active) {
-                this.new_event_x_final = this.mouse_x;
-                this.new_event_y_final = this.mouse_y;
+                this.newEventFinalPosition = Object.assign({}, this.mousePosition);
                 this._setNewEventStartEnd();
             } else if (this.zoom_active) {
-                this.zoom_x_final = this.mouse_x;
-                this.zoom_y_final = this.mouse_y;
+                this.zoomFinal = Object.assign({}, this.mousePosition);
                 this._setZoomStartEnd();
             } else if (this.selected_event_moved !== null) {
                 this.selected_event_moved = true;
-                this.selected_event_x_final = this.mouse_x;
-                this.selected_event_y_final = this.mouse_y;
+                this.selectedEventFinal = Object.assign({}, this.mousePosition);
             } else {
             }
             draw();
+            // TODO: consider invoking _calcEventLayers() here
         } else {
-            const hoverInfo = this._checkForEventHover(this.mouse_x, this.mouse_y);
+            const hoverInfo = this._checkForEventHover(this.mousePosition.x, this.mousePosition.y);
             if (hoverInfo.top) {
                 canvas.style.cursor = 'n-resize';
             } else if (hoverInfo.bottom) {
@@ -705,28 +685,7 @@ class YearView extends CalendarView {
 }
 
 const dayView = new DayView();
-//Object.freeze(dayView);
-
 const weekView = new WeekView();
-//Object.freeze(weekView);
-
 const monthView = new MonthView();
-//Object.freeze(monthView);
-
 const quarterView = new QuarterView();
-//Object.freeze(quarterView);
-
 const yearView = new YearView();
-//Object.freeze(yearView);
-
-//export default instance;
-
-//const required = function(){ throw new Error("Implement!"); };
-
-//const InputInterface = {
-//    render: required,
-//    value: required
-//};
-
-//function Input(){}
-//Input.prototype = Object.create(InputInterface);

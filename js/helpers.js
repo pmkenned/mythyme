@@ -53,6 +53,22 @@ const monthNamesShort = [
     'Dec'
 ];
 
+class Point {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+    }
+}
+
+class Rect {
+    constructor(x, y, w, h) {
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = h;
+    }
+}
+
 /**
  * Draws a rounded rectangle using the current state of the canvas.
  * If you omit the last three params, it will draw a rectangle
@@ -117,6 +133,10 @@ function getDateFromSQL(sqlDate, sqlTime) {
     month--; // NOTE: JavaScript's Date class indexes months starting at 0
     const [hour, min] = sqlTime.split(':').map(Number);
     return new Date(year, month, _date, hour, min);
+}
+
+function clientToCanvas(x, y) {
+    return new Point(x, y - canvas.offsetTop);
 }
 
 const clientToCanvasY = y => y - canvas.offsetTop;
