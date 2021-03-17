@@ -115,7 +115,7 @@ class WeekView extends CalendarView {
             if ((e.end_date < this.origin_date) || (e.start_date > this.next_origin_date)) {
                 continue;
             }
-            const e_col = e.start_date.getDay();
+            const e_col = inWeek(e.start_date.getDay() - this.originOffsetFromSunday);
             const e_x_min = this.left_col_px + e_col*this._colWidth()+1 + e.layer*this._colWidth()*0.1;
             const e_x_max = e_x_min + 0.9*this._colWidth() - e.layer*this._colWidth()*0.1;
             const e_y_min = Math.max(this._hoursMinsToY(e.start_date.getHours(), e.start_date.getMinutes()), this.top_row_px);
@@ -143,7 +143,7 @@ class WeekView extends CalendarView {
             if ((e.end_date < this.origin_date) || (e.start_date > this.next_origin_date)) {
                 continue;
             }
-            const e_col = e.start_date.getDay();
+            let e_col = inWeek(e.start_date.getDay() - this.originOffsetFromSunday);
             const e_x_min = this.left_col_px + e_col*this._colWidth()+1 + e.layer*this._colWidth()*0.1;
             const e_x_max = e_x_min + 0.9*this._colWidth() - e.layer*this._colWidth()*0.1;
             const e_y_min = Math.max(this._hoursMinsToY(e.start_date.getHours(), e.start_date.getMinutes()), this.top_row_px);
@@ -284,24 +284,28 @@ class WeekView extends CalendarView {
     }
 
     setOriginDateFromToday() {
-        this.origin_date = new Date()
-        this.origin_date.setDate((new Date()).getDate() - (new Date()).getDay());
+        this.originOffsetFromSunday = DEFAULT_START_DAY;
+        this.origin_date = new Date();
+
+        const currTime = new Date();
+        if (currTime.getDay() >= DEFAULT_START_DAY) {
+            this.origin_date.setDate(this.origin_date.getDate() - currTime.getDay() + DEFAULT_START_DAY);
+        } else {
+            this.origin_date.setDate(this.origin_date.getDate() - currTime.getDay() + DEFAULT_START_DAY - DAYS_IN_WEEK);
+        }
+
         this.origin_date.setHours(0);
         this.origin_date.setMinutes(0);
         this.origin_date.setSeconds(0);
         this.origin_date.setMilliseconds(0);
         this.next_origin_date = new Date(this.origin_date.getTime());
         this.next_origin_date.setDate(this.origin_date.getDate() + DAYS_IN_WEEK);
-        this.originOffsetFromSunday = 0;
     }
 
     _advanceOriginDate(n) {
         this.origin_date.setDate(this.origin_date.getDate() + n);
         this.next_origin_date.setDate(this.next_origin_date.getDate() + n);
-        this.originOffsetFromSunday = (this.originOffsetFromSunday + n) % DAYS_IN_WEEK;
-        //while (this.originOffsetFromSunday < 0) {
-        //    this.originOffsetFromSunday += DAYS_IN_WEEK;
-        //}
+        this.originOffsetFromSunday = inWeek(this.originOffsetFromSunday + n);
     }
 
     render() {
@@ -355,7 +359,7 @@ class WeekView extends CalendarView {
             if ((e.end_date >= this.origin_date) && (e.start_date <= this.next_origin_date)) {
                 const [dest_start_date, dest_end_date] = this._getModifiedTimes(e);
 
-                const start_col = (dest_start_date.getDay() - this.originOffsetFromSunday) % DAYS_IN_WEEK;
+                const start_col = inWeek(dest_start_date.getDay() - this.originOffsetFromSunday);
                 const top_px = this._hoursMinsToY(dest_start_date.getHours(), dest_start_date.getMinutes());
                 const bot_px = this._hoursMinsToY(dest_end_date.getHours(),   dest_end_date.getMinutes());
 
@@ -371,7 +375,8 @@ class WeekView extends CalendarView {
                     this.left_col_px + start_col*this._colWidth()+1 + e.layer*this._colWidth()*0.1,
                     top_px,
                     0.9*this._colWidth() - e.layer*this._colWidth()*0.1,
-                    bot_px - top_px, 8,
+                    bot_px - top_px,
+                    8,
                     true, true
                 );
 
@@ -386,11 +391,19 @@ class WeekView extends CalendarView {
                     ctx.font = "bold 14px Arial";
                     px_offset = 6;
                 }
-                ctx.fillText(e.title, this.left_col_px + (start_col+0.1)*this._colWidth(), (top_px+bot_px)/2 + px_offset);
+                ctx.fillText(
+                    e.title,
+                    this.left_col_px + (start_col+0.1)*this._colWidth() + e.layer*this._colWidth()*0.1,
+                    (top_px+bot_px)/2 + px_offset
+                );
                 ctx.font = "18px Arial";
                 const startEndStr = getStartAndEndTimeString(dest_start_date, dest_end_date);
                 if (longerThan15Min) {
-                    ctx.fillText(startEndStr, this.left_col_px+(start_col+0.1)*this._colWidth(), (top_px+bot_px)/2 + 20);
+                    ctx.fillText(
+                        startEndStr,
+                        this.left_col_px + (start_col+0.1)*this._colWidth() + e.layer*this._colWidth()*0.1,
+                        (top_px+bot_px)/2 + 20
+                    );
                 }
             }
         }
@@ -401,7 +414,16 @@ class WeekView extends CalendarView {
             const col = this._xToCol(this.newEventInitPosition.x);
             const top_px = this._hoursMinsToY(this.new_event.start_date.getHours(), this.new_event.start_date.getMinutes());
             const bot_px = this._hoursMinsToY(this.new_event.end_date.getHours(), this.new_event.end_date.getMinutes());
-            ctx.fillRect(this.left_col_px + col*this._colWidth()+1, top_px, this._colWidth()-1, bot_px - top_px);
+            //ctx.fillRect(this.left_col_px + col*this._colWidth()+1, top_px, this._colWidth()-1, bot_px - top_px);
+            ctx.roundRect(
+                this.left_col_px + col*this._colWidth()+1,
+                top_px,
+                this._colWidth()-1,
+                bot_px - top_px,
+                8,
+                true,
+                true
+            );
         }
 
         // draw vertical lines and dates across top
@@ -434,7 +456,7 @@ class WeekView extends CalendarView {
 
         // draw current time
         const current_date = new Date();
-        const col = (current_date.getDay() - this.originOffsetFromSunday) % DAYS_IN_WEEK;
+        const col = inWeek(current_date.getDay() - this.originOffsetFromSunday);
         const line_y = this._hoursMinsToY(current_date.getHours(), current_date.getMinutes());
         ctx.lineWidth = 3;
         ctx.strokeStyle = "red";
@@ -488,12 +510,17 @@ class WeekView extends CalendarView {
 
         } else if (e.key == "[") {
             this._advanceOriginDate(-1);
-            //if (this.grid_idx > 0) { this.grid_idx--; }
-            //this.grid_size = grid_presets[this.grid_idx];
+            // TODO: getEvents() efficiently
         } else if (e.key == "]") {
             this._advanceOriginDate(1);
-            //if (this.grid_idx < grid_presets.length-1) { this.grid_idx++; }
-            //this.grid_size = grid_presets[this.grid_idx];
+            // TODO: getEvents() efficiently
+
+        } else if (e.key == "-") {
+            if (this.grid_idx > 0) { this.grid_idx--; }
+            this.grid_size = grid_presets[this.grid_idx];
+        } else if (e.key == "+") {
+            if (this.grid_idx < grid_presets.length-1) { this.grid_idx++; }
+            this.grid_size = grid_presets[this.grid_idx];
 
         } else if (e.key == "f") {
             this.new_event_active = false;

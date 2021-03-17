@@ -172,6 +172,21 @@ const change_brightness = (color, percent) => {
     return ("#" + rgb);
 };
 
+function within(x, lo, hi) {
+    console.assert(lo < hi);
+    while (x < lo) {
+        x += (hi-lo);
+    }
+    while (x > hi) {
+        x -= (hi-lo);
+    }
+    return x;
+}
+
+function inWeek(x) {
+    return within(x, 0, DAYS_IN_WEEK);
+}
+
 String.prototype.sum = function() {
     let sum = 0;
     for (let i = 0; i < this.length; i++) {

@@ -1,5 +1,7 @@
 "use strict";
 
+const DEFAULT_START_DAY = 0;
+
 const MIN_DY = 0;
 const EDGE_SIZE = 10;
 
