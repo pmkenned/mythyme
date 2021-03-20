@@ -25,6 +25,21 @@ class DayView extends CalendarView {
     render() {
         ctx.clearRect(0, 0, can_w, can_h);
     }
+
+    keydown(e) {
+    }
+
+    mousedown(e) {
+    }
+
+    mouseup(e) {
+    }
+
+    mousemove(e) {
+    }
+
+    resize(e) {
+    }
 }
 
 class WeekView extends CalendarView {
@@ -67,10 +82,16 @@ class WeekView extends CalendarView {
         this.zoomInit = new Point();
         this.zoomFinal = new Point();
         this.zoom_start_hour, this.zoom_end_hour;
+
+        this.sidebarVisible = false;
+    }
+
+    _getSidebarPx() {
+        return this.sidebarVisible ? Math.floor(SIDEBAR_WIDTH_PERCENT * can_w) : 0;
     }
 
     _hours_in_view()        { return (this.view_end_hour - this.view_start_hour) + 1; }
-    _colWidth()             { return Math.floor((can_w-this.left_col_px)/DAYS_IN_WEEK); }
+    _colWidth()             { return Math.floor((can_w-this.left_col_px-this._getSidebarPx())/DAYS_IN_WEEK); }
     _hourHeight()           { return Math.floor((can_h-this.top_row_px)/this._hours_in_view()); }
     _hoursMinsToY(hour, min){ return Math.round(this.top_row_px + ((hour-this.view_start_hour)+min/60.0) * this._hourHeight()); }
 
@@ -90,7 +111,7 @@ class WeekView extends CalendarView {
     }
 
     // TODO: handle x - left_col_px < 0 case
-    _xToCol(x) { return Math.floor((x-this.left_col_px)/this._colWidth()); }
+    _xToCol(x) { return Math.floor((x-this.left_col_px-this._getSidebarPx())/this._colWidth()); }
 
     _xyToDateTime(x, y) {
         const col = this._xToCol(x);
@@ -106,6 +127,39 @@ class WeekView extends CalendarView {
         return this._xyToDateTime(this.mousePosition.x, this.mousePosition.y);
     }
 
+    _selectCurrentOrUpcomingEvent() {
+        events.sort((a,b) => a.start_date.getTime() - b.start_date.getTime());
+        // find the first event which ends after the current time
+        for (const e of events) {
+            if (e.end_date.getTime() > (new Date()).getTime()) {
+                this.selected_event = e;
+                break;
+            }
+        }
+    }
+
+    _selectNextEvent() {
+        events.sort((a,b) => a.start_date.getTime() - b.start_date.getTime());
+        for (const e of events) {
+            if (e.start_date.getTime() > this.selected_event.start_date.getTime()) {
+                this.selected_event = e;
+                break;
+            }
+        }
+    }
+
+    _selectPrevEvent() {
+        events.sort((a,b) => a.start_date.getTime() - b.start_date.getTime());
+        let prev_event = events[0];
+        for (const e of events) {
+            if (e.start_date.getTime() >= this.selected_event.start_date.getTime()) {
+                this.selected_event = prev_event;
+                break;
+            }
+            prev_event = e;
+        }
+    }
+
     // TODO: this code is redundant with _setClickedEvent, eliminate redundancy
     _checkForEventHover(x, y) {
         let hoverInfo = {};
@@ -116,7 +170,7 @@ class WeekView extends CalendarView {
                 continue;
             }
             const e_col = inWeek(e.start_date.getDay() - this.originOffsetFromSunday);
-            const e_x_min = this.left_col_px + e_col*this._colWidth()+1 + e.layer*this._colWidth()*0.1;
+            const e_x_min = this._getSidebarPx() + this.left_col_px + e_col*this._colWidth()+1 + e.layer*this._colWidth()*0.1;
             const e_x_max = e_x_min + 0.9*this._colWidth() - e.layer*this._colWidth()*0.1;
             const e_y_min = Math.max(this._hoursMinsToY(e.start_date.getHours(), e.start_date.getMinutes()), this.top_row_px);
             const e_y_max = this._hoursMinsToY(e.end_date.getHours(), e.end_date.getMinutes());
@@ -144,7 +198,7 @@ class WeekView extends CalendarView {
                 continue;
             }
             let e_col = inWeek(e.start_date.getDay() - this.originOffsetFromSunday);
-            const e_x_min = this.left_col_px + e_col*this._colWidth()+1 + e.layer*this._colWidth()*0.1;
+            const e_x_min = this._getSidebarPx() + this.left_col_px + e_col*this._colWidth()+1 + e.layer*this._colWidth()*0.1;
             const e_x_max = e_x_min + 0.9*this._colWidth() - e.layer*this._colWidth()*0.1;
             const e_y_min = Math.max(this._hoursMinsToY(e.start_date.getHours(), e.start_date.getMinutes()), this.top_row_px);
             const e_y_max = this._hoursMinsToY(e.end_date.getHours(), e.end_date.getMinutes());
@@ -170,7 +224,7 @@ class WeekView extends CalendarView {
 
     _calcEventLayers() {
         events.sort((a,b) => a.layer - b.layer);
-        for (let d = 0; d < DAYS_IN_WEEK; d++) { // day in week
+        for (let d = 0; d < DAYS_IN_WEEK; d++) {
 
             let day_in_week = new Date(this.origin_date.getTime());
             day_in_week.setDate(this.origin_date.getDate() + d);
@@ -194,7 +248,10 @@ class WeekView extends CalendarView {
                     overlap = false;
                     let priorEventsInLayer = [];
                     for (const e2 of eventsOnDay) {
-                        if ((e2.layer === e.layer) && (e2.start_date.getTime() < e.start_date.getTime())) {
+                        if (e2 === e) {
+                            continue;
+                        }
+                        if ((e2.layer === e.layer) && (e2.start_date.getTime() <= e.start_date.getTime())) {
                             priorEventsInLayer.push(e2);
                         }
                     }
@@ -213,7 +270,6 @@ class WeekView extends CalendarView {
     }
 
     // TODO: prevent moving start time past end time and vice versa
-    // TODO: allow for moving across columns
     _getModifiedTimes(e) {
         const dx = (e === this.selected_event && this.selected_event_moved) ? this.selectedEventFinal.x - this.selectedEventInit.x : 0;
         const dy = (e === this.selected_event && this.selected_event_moved) ? this.selectedEventFinal.y - this.selectedEventInit.y : 0;
@@ -326,8 +382,8 @@ class WeekView extends CalendarView {
             ctx.strokeStyle = currentTheme.lineColor;
             const hour_y = to_px(this.top_row_px + i*this._hourHeight());
             ctx.beginPath();
-            ctx.moveTo(0,     hour_y);
-            ctx.lineTo(can_w, hour_y);
+            ctx.moveTo(this._getSidebarPx(),  hour_y);
+            ctx.lineTo(can_w,                 hour_y);
             ctx.stroke();
 
             // draw dashed lines
@@ -339,8 +395,8 @@ class WeekView extends CalendarView {
             for (let j = 1; j < grid_per_hour; j++) {
                 const grid_y = to_px(hour_y + j*grid_height);
                 ctx.beginPath();
-                ctx.moveTo(this.left_col_px, grid_y);
-                ctx.lineTo(can_w, grid_y);
+                ctx.moveTo(this._getSidebarPx() + this.left_col_px, grid_y);
+                ctx.lineTo(can_w,                                   grid_y);
                 ctx.stroke();
             }
             ctx.setLineDash([]);
@@ -349,7 +405,7 @@ class WeekView extends CalendarView {
             const hour = i + this.view_start_hour;
             const oclock = militaryTo12hr(hour);
             const am_pm = (hour < 12) ? 'am' : 'pm';
-            ctx.fillText(`${oclock} ${am_pm}`, 5, this.top_row_px + i*this._hourHeight()+15);
+            ctx.fillText(`${oclock} ${am_pm}`, this._getSidebarPx() + 5, this.top_row_px + i*this._hourHeight()+15);
         }
 
         // draw events
@@ -372,7 +428,7 @@ class WeekView extends CalendarView {
                 ctx.fillStyle = (e === this.selected_event) ? "cyan" : ctx.fillStyle;
                 ctx.strokeStyle = change_brightness(ctx.fillStyle, 50);
                 ctx.roundRect(
-                    this.left_col_px + start_col*this._colWidth()+1 + e.layer*this._colWidth()*0.1,
+                    this._getSidebarPx() + this.left_col_px + start_col*this._colWidth()+1 + e.layer*this._colWidth()*0.1,
                     top_px,
                     0.9*this._colWidth() - e.layer*this._colWidth()*0.1,
                     bot_px - top_px,
@@ -380,30 +436,37 @@ class WeekView extends CalendarView {
                     true, true
                 );
 
-                const longerThan15Min = dest_end_date.getTime() - dest_start_date.getTime() > 1000*60*30;
+                const hoursLong = (dest_end_date.getTime() - dest_start_date.getTime())/(1000*60*60);
+                const pxTall = hoursLong * this._hourHeight();
+                const tallerThan40 = pxTall > 40;
 
                 ctx.fillStyle = currentTheme.fontColor;
-                let px_offset;
-                if (longerThan15Min) {
-                    ctx.font = "bold 20px Arial";
-                    px_offset = 0;
+                let font_px;
+                if (tallerThan40) {
+                    font_px = 20;
                 } else {
-                    ctx.font = "bold 14px Arial";
-                    px_offset = 6;
+                    font_px = 14;
                 }
-                ctx.fillText(
-                    e.title,
-                    this.left_col_px + (start_col+0.1)*this._colWidth() + e.layer*this._colWidth()*0.1,
-                    (top_px+bot_px)/2 + px_offset
-                );
+                ctx.font = `bold ${font_px}px Arial`;
+                const titlePosition = new Point();
+                titlePosition.x = this._getSidebarPx() + this.left_col_px + (start_col+0.1)*this._colWidth() + e.layer*this._colWidth()*0.1;
+                titlePosition.y = (top_px+bot_px)/2;
+
+                titlePosition.y = Math.max(titlePosition.y, this.top_row_px+20);
+                titlePosition.y = Math.min(titlePosition.y, bot_px - 20);
+
+                titlePosition.y = Math.min(titlePosition.y, can_h - 20);
+                titlePosition.y = Math.max(titlePosition.y, top_px + font_px);
+                ctx.fillText(e.title, titlePosition.x, titlePosition.y);
+
                 ctx.font = "18px Arial";
                 const startEndStr = getStartAndEndTimeString(dest_start_date, dest_end_date);
-                if (longerThan15Min) {
-                    ctx.fillText(
-                        startEndStr,
-                        this.left_col_px + (start_col+0.1)*this._colWidth() + e.layer*this._colWidth()*0.1,
-                        (top_px+bot_px)/2 + 20
-                    );
+                const startEndStrPosition = new Point();
+                startEndStrPosition.x = this._getSidebarPx() + this.left_col_px + (start_col+0.1)*this._colWidth() + e.layer*this._colWidth()*0.1;
+                //startEndStrPosition.y = (top_px+bot_px)/2 + 20;
+                startEndStrPosition.y = titlePosition.y + 20;
+                if (tallerThan40) {
+                    ctx.fillText(startEndStr, startEndStrPosition.x, startEndStrPosition.y);
                 }
             }
         }
@@ -416,7 +479,7 @@ class WeekView extends CalendarView {
             const bot_px = this._hoursMinsToY(this.new_event.end_date.getHours(), this.new_event.end_date.getMinutes());
             //ctx.fillRect(this.left_col_px + col*this._colWidth()+1, top_px, this._colWidth()-1, bot_px - top_px);
             ctx.roundRect(
-                this.left_col_px + col*this._colWidth()+1,
+                this._getSidebarPx() + this.left_col_px + col*this._colWidth()+1,
                 top_px,
                 this._colWidth()-1,
                 bot_px - top_px,
@@ -442,16 +505,16 @@ class WeekView extends CalendarView {
         ctx.font = "bold 15px Arial";
         for (let i = 0; i < DAYS_IN_WEEK; i++) {
             ctx.beginPath();
-            ctx.moveTo(to_px(this.left_col_px + i*this._colWidth()), 0);
-            ctx.lineTo(to_px(this.left_col_px + i*this._colWidth()), can_h);
+            ctx.moveTo(to_px(this._getSidebarPx() + this.left_col_px + i*this._colWidth()), 0);
+            ctx.lineTo(to_px(this._getSidebarPx() + this.left_col_px + i*this._colWidth()), can_h);
             ctx.stroke();
             const col_date = new Date(this.origin_date.getTime());
             col_date.setDate(col_date.getDate() + i);
             const month = monthNamesShort[col_date.getMonth()];
             const _date = col_date.getDate();
             const dayName = dayNamesShort[(i + this.originOffsetFromSunday) % DAYS_IN_WEEK];
-            ctx.fillText(dayName,               to_px(this.left_col_px + 10 + i*this._colWidth()), 20);
-            ctx.fillText(`${month} ${_date}`,   to_px(this.left_col_px + 10 + i*this._colWidth()), 40);
+            ctx.fillText(dayName,               to_px(this._getSidebarPx() + this.left_col_px + 10 + i*this._colWidth()), 20);
+            ctx.fillText(`${month} ${_date}`,   to_px(this._getSidebarPx() + this.left_col_px + 10 + i*this._colWidth()), 40);
         }
 
         // draw current time
@@ -462,8 +525,8 @@ class WeekView extends CalendarView {
         ctx.strokeStyle = "red";
         if (current_date.getTime() >= this.origin_date.getTime() && current_date.getTime() <= this.next_origin_date.getTime()) {
             ctx.beginPath();
-            ctx.moveTo(to_px(this.left_col_px + col*this._colWidth()), to_px(line_y));
-            ctx.lineTo(to_px(this.left_col_px + (col+1)*this._colWidth()), to_px(line_y));
+            ctx.moveTo(to_px(this._getSidebarPx() + this.left_col_px + col*this._colWidth()), to_px(line_y));
+            ctx.lineTo(to_px(this._getSidebarPx() + this.left_col_px + (col+1)*this._colWidth()), to_px(line_y));
             ctx.stroke();
         }
 
@@ -471,7 +534,12 @@ class WeekView extends CalendarView {
             ctx.fillStyle = currentTheme.zoomColor;
             const zoom_top_px = this._hoursMinsToY(this.zoom_start_hour, 0);
             const zoom_bot_px = this._hoursMinsToY(this.zoom_end_hour+1, 0);
-            ctx.fillRect(0, zoom_top_px, this.left_col_px, zoom_bot_px - zoom_top_px);
+            ctx.fillRect(
+                this._getSidebarPx(),
+                zoom_top_px,
+                can_w - this._getSidebarPx(),
+                zoom_bot_px - zoom_top_px
+            );
         }
 
         if (hotkeys_menu) {
@@ -508,10 +576,10 @@ class WeekView extends CalendarView {
                 MyThymeAPI.deleteEvent(this.selected_event.id);
             }
 
-        } else if (e.key == "[") {
+        } else if (e.key == "h") {
             this._advanceOriginDate(-1);
             // TODO: getEvents() efficiently
-        } else if (e.key == "]") {
+        } else if (e.key == "l") {
             this._advanceOriginDate(1);
             // TODO: getEvents() efficiently
 
@@ -521,6 +589,47 @@ class WeekView extends CalendarView {
         } else if (e.key == "+") {
             if (this.grid_idx < grid_presets.length-1) { this.grid_idx++; }
             this.grid_size = grid_presets[this.grid_idx];
+
+        } else if (e.key == "j") {
+            if (this.view_end_hour < HOURS_IN_DAY) {
+                this.view_start_hour += 1;
+                this.view_end_hour += 1;
+            }
+        } else if (e.key == "k") {
+            if (this.view_start_hour > 0) {
+                this.view_start_hour -= 1;
+                this.view_end_hour -= 1;
+            }
+
+        } else if (e.key == "i") {
+            if (this.view_start_hour < this.view_end_hour - 2) {
+                this.view_start_hour += 1;
+                this.view_end_hour -= 1;
+            }
+        } else if (e.key == "o") {
+            if (this.view_start_hour > 0) {
+                this.view_start_hour -= 1;
+            }
+            if (this.view_end_hour < HOURS_IN_DAY) {
+                this.view_end_hour += 1;
+            }
+
+        } else if (e.key == ",") {
+            if (this.selected_event === null) {
+                this._selectCurrentOrUpcomingEvent();
+            } else {
+                this._selectPrevEvent();
+            }
+        } else if (e.key == ".") {
+            if (this.selected_event === null) {
+                this._selectCurrentOrUpcomingEvent();
+            } else {
+                this._selectNextEvent();
+            }
+
+        } else if (e.key == "S") {
+            this.sidebarVisible = !this.sidebarVisible;
+
 
         } else if (e.key == "f") {
             this.new_event_active = false;
@@ -535,23 +644,34 @@ class WeekView extends CalendarView {
                 this.view_start_hour = 0;
                 this.view_end_hour = 23;
             }
-            resize();
+            resize(); // NOTE: this calls the global resize function
 
-        } else if (e.key == "ArrowDown") {
+        } else if (e.key == "ArrowDown" || e.key == "ArrowUp") {
             if (this.selected_event !== null) {
-                const dest_start_date = this.selected_event.start_date;
                 const dest_end_date = this.selected_event.end_date;
-                dest_start_date.setMinutes(dest_start_date.getMinutes()+this.grid_size);
-                dest_end_date.setMinutes(dest_end_date.getMinutes()+this.grid_size);
-                MyThymeAPI.modifyEvent(this.selected_event.id, {start_time: dest_start_date.getSQLTime(), end_time: dest_end_date.getSQLTime()});
-            }
-        } else if (e.key == "ArrowUp") {
-            if (this.selected_event !== null) {
                 const dest_start_date = this.selected_event.start_date;
-                const dest_end_date = this.selected_event.end_date;
-                dest_start_date.setMinutes(dest_start_date.getMinutes()-this.grid_size);
-                dest_end_date.setMinutes(dest_end_date.getMinutes()-this.grid_size);
-                MyThymeAPI.modifyEvent(this.selected_event.id, {start_time: dest_start_date.getSQLTime(), end_time: dest_end_date.getSQLTime()});
+                if (e.shiftKey) {
+                    if (e.key == "ArrowDown") {
+                        dest_end_date.setMinutes(dest_end_date.getMinutes()+this.grid_size);
+                    } else {
+                        dest_end_date.setMinutes(dest_end_date.getMinutes()-this.grid_size);
+                    }
+                } else {
+                    if (e.key == "ArrowDown") {
+                        dest_start_date.setMinutes(dest_start_date.getMinutes()+this.grid_size);
+                        dest_end_date.setMinutes(dest_end_date.getMinutes()+this.grid_size);
+                    } else {
+                        dest_start_date.setMinutes(dest_start_date.getMinutes()-this.grid_size);
+                        dest_end_date.setMinutes(dest_end_date.getMinutes()-this.grid_size);
+                    }
+                }
+                MyThymeAPI.modifyEvent(
+                    this.selected_event.id,
+                    {
+                        start_time: dest_start_date.getSQLTime(),
+                        end_time: dest_end_date.getSQLTime()
+                    }
+                );
             }
         } else if (e.key == "ArrowLeft") {
         } else if (e.key == "ArrowRight") {
@@ -572,12 +692,19 @@ class WeekView extends CalendarView {
         if (this.mouse_left_btn_down) {
             this._setClickedEvent(mouseDownPosition.x, mouseDownPosition.y);
             if (this.selected_event === null) {
-                if (mouseDownPosition.x > this.left_col_px && mouseDownPosition.y > this.top_row_px) {
+                if (
+                    mouseDownPosition.x > this._getSidebarPx() + this.left_col_px &&
+                    mouseDownPosition.y > this.top_row_px
+                ) {
                     this.new_event_active = true;
                     this.newEventInitPosition = Object.assign({}, mouseDownPosition);
                     this.newEventFinalPosition = Object.assign({}, mouseDownPosition);
                     this._setNewEventStartEnd()
-                } else if (mouseDownPosition.x < this.left_col_px && mouseDownPosition.y > this.top_row_px) {
+                } else if (
+                    mouseDownPosition.x > this._getSidebarPx() &&
+                    mouseDownPosition.x < this._getSidebarPx() + this.left_col_px &&
+                    mouseDownPosition.y > this.top_row_px
+                ) {
                     this.zoom_active  = true;
                     this.zoomInit = Object.assign({}, mouseDownPosition);
                     this.zoomFinal = Object.assign({}, mouseDownPosition);
@@ -618,6 +745,7 @@ class WeekView extends CalendarView {
                     }
                 }
                 this.new_event_active = false;
+                this._calcEventLayers();
             } else if (this.zoom_active) {
                 this.view_start_hour = this.zoom_start_hour;
                 this.view_end_hour = this.zoom_end_hour;
@@ -656,7 +784,7 @@ class WeekView extends CalendarView {
             } else if (this.zoom_active) {
                 this.zoomFinal = Object.assign({}, this.mousePosition);
                 this._setZoomStartEnd();
-            } else if (this.selected_event_moved !== null) {
+            } else if (this.selected_event !== null) {
                 this.selected_event_moved = true;
                 this.selectedEventFinal = Object.assign({}, this.mousePosition);
             } else {
@@ -679,7 +807,7 @@ class WeekView extends CalendarView {
         this.top_row_px = INIT_TOP_ROW_PX;
         this.top_row_px += (can_h-this.top_row_px) - this._hourHeight()*this._hours_in_view();
         this.left_col_px = INIT_LEFT_COL_PX;
-        this.left_col_px += (can_w-this.left_col_px) - this._colWidth()*DAYS_IN_WEEK;
+        this.left_col_px += (can_w-this.left_col_px-this._getSidebarPx()) - this._colWidth()*DAYS_IN_WEEK;
     }
 
 }
@@ -688,8 +816,81 @@ class MonthView extends CalendarView {
     constructor() {
         super();
     }
+
     render() {
         ctx.clearRect(0, 0, can_w, can_h);
+
+        const now = new Date();
+
+        const firstOfMonth = new Date();
+        firstOfMonth.setDate(1);
+        firstOfMonth.setHours(0);
+        firstOfMonth.setMinutes(0);
+        firstOfMonth.setSeconds(0);
+        firstOfMonth.setMilliseconds(0);
+
+        const cellDate = new Date(firstOfMonth.getTime());
+        cellDate.setDate(cellDate.getDate() - cellDate.getDay());
+
+        // draw day numbers
+        // TODO: make this code less utterly repulsive
+        ctx.font = "20px Arial";
+        for (let i = 0; i < 6; i++) {
+            for (let j = 0; j < DAYS_IN_WEEK; j++) {
+                const cellRect = new Rect();
+                cellRect.x = to_px(can_w/DAYS_IN_WEEK * j);
+                cellRect.y = to_px(can_h/6 * i);
+                cellRect.w = to_px(can_w/DAYS_IN_WEEK);
+                cellRect.h = to_px(can_h/6);
+
+                cellDate.setDate(cellDate.getDate() + 1);
+                ctx.fillStyle = currentTheme.dashedColor;
+                if (cellDate.getTime() < now.getTime()) {
+                    ctx.fillRect(cellRect.x, cellRect.y, cellRect.w, cellRect.h);
+                }
+                cellDate.setDate(cellDate.getDate() - 1);
+
+                ctx.fillStyle = currentTheme.fontColor;
+                ctx.fillText(`${cellDate.getDate()}`, cellRect.x+2, cellRect.y+22);
+
+                cellDate.setDate(cellDate.getDate() + 1);
+            }
+        }
+
+        ctx.strokeStyle = currentTheme.lineColor;
+        ctx.lineWidth = 1;
+
+        // draw vertical lines
+        for (let i = 0; i < DAYS_IN_WEEK; i++) {
+            ctx.beginPath();
+            const x = to_px(can_w/DAYS_IN_WEEK * i);
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, can_h);
+            ctx.stroke();
+        }
+        // draw horizontal lines
+        for (let i = 0; i < 6; i++) {
+            ctx.beginPath();
+            const y = to_px(can_h/6 * i);
+            ctx.moveTo(0,       y);
+            ctx.lineTo(can_w,   y);
+            ctx.stroke();
+        }
+    }
+
+    keydown(e) {
+    }
+
+    mousedown(e) {
+    }
+
+    mouseup(e) {
+    }
+
+    mousemove(e) {
+    }
+
+    resize(e) {
     }
 }
 
@@ -697,8 +898,24 @@ class QuarterView extends CalendarView {
     constructor() {
         super();
     }
+
     render() {
         ctx.clearRect(0, 0, can_w, can_h);
+    }
+
+    keydown(e) {
+    }
+
+    mousedown(e) {
+    }
+
+    mouseup(e) {
+    }
+
+    mousemove(e) {
+    }
+
+    resize(e) {
     }
 }
 
@@ -706,8 +923,24 @@ class YearView extends CalendarView {
     constructor() {
         super();
     }
+
     render() {
         ctx.clearRect(0, 0, can_w, can_h);
+    }
+
+    keydown(e) {
+    }
+
+    mousedown(e) {
+    }
+
+    mouseup(e) {
+    }
+
+    mousemove(e) {
+    }
+
+    resize(e) {
     }
 }
 

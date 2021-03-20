@@ -11,6 +11,8 @@ const RIGHT_MOUSE_BUTTON = 2;
 const INIT_TOP_ROW_PX = 40;
 const INIT_LEFT_COL_PX = 45;
 
+const SIDEBAR_WIDTH_PERCENT = 0.13;
+
 const grid_presets = [1, 5, 10, 15, 20, 30, 60];
 
 // TODO: Color class

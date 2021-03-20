@@ -59,7 +59,7 @@ class MyThymeAPI {
                     Object.assign(found_event , {title: e.title, start_date: start_date, end_date: end_date, color: color, id: e.id});
                 }
             }
-            currentView._calcEventLayers(); // TODO
+            currentView._calcEventLayers(); // TODO: separation of concerns?
             draw();
         }).fail(function(jqXHR, textStatus, errorThrown) {
             console.error(jqXHR.responseJSON);
@@ -101,7 +101,7 @@ class MyThymeAPI {
         }).done(function(data) {
             console.log(data);
             currentView._calcEventLayers(); // TODO
-        draw();
+            draw();
         }).fail(function(jqXHR, textStatus, errorThrown) {
             console.error(jqXHR.responseJSON);
             reloadIfLoggedOut(jqXHR);

@@ -27,4 +27,6 @@ $(function() {
     MyThymeAPI.getEvents();
     resize();
     draw();
+
+    //setInterval(MyThymeAPI.getEvents, 1000*60);
 });
