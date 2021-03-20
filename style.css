@@ -5,7 +5,8 @@ body {
 body.mythyme {
     margin: 0;
     height: 100vh;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: hidden; /* auto */
 }
 
 body.maxwidth700 {
