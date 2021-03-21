@@ -2,11 +2,9 @@
 
 |Description                                                |Status  |Category|Hours|
 |-----------------------------------------------------------|--------|--------|-----|
-| Fix performance issues (requestAnimationFrame)            |Current |        |     |
-| Allow for scrolling                                       |TODO    |        |     |
-| Zoom in/out hot keys                                      |TODO    |        |     |
-| Allow for having origin date be any day of week           |TODO    |        | 2.0 |
-| Create multiple views                                     |TODO    |        | 4.0 |
+| Fix performance issues (requestAnimationFrame)            |Progress|        |     |
+| Create multiple views                                     |Progress|        | 4.0 |
+| Allow for scrolling                                       |Progress|        |     |
 | Render better on mobile/small screens                     |Progress|Mobile  |     |
 | '?' displays hot keys menu                                |Progress|        | 0.5 |
 | Mitigate network latency                                  |Progress|        | 2.0 |
@@ -17,11 +15,12 @@
 | Light/dark theme                                          |Progress|        | 1.0 |
 | Correctly handle responses from server, check for errors  |Progress|        | 1.5 |
 | Handle right-click and double-click                       |Progress|        | 2.0 |
-| Improve readability of event titles                       |TODO    |        |     |
+| Improve readability of event titles                       |Progress|        |     |
+| To-do sidebar                                             |Progress|        | 4.0 |
+| Store user settings                                       |TODO    |        | 3.0 |
 | Handle events that span multiple days                     |TODO    |        | 2.0 |
 | Recurring events                                          |TODO    |        | 6.0 |
 | Automated testing                                         |TODO    |        | 5.0 |
-| To-do sidebar                                             |TODO    |        | 4.0 |
 | Allow for modifying description, location, etc.           |TODO    |        | 2.0 |
 | Add hotkeys for creating, selecting, and moving events    |TODO    |        | 1.5 |
 | Undo functionality                                        |TODO    |        | 4.0 |
@@ -36,7 +35,6 @@
 | Allow for selecting multiple events                       |TODO    |        | 2.0 |
 | Display original event as semi-transparent                |TODO    |        | 1.0 |
 | All-day events                                            |TODO    |        | 2.0 |
-| Store user settings                                       |TODO    |        | 3.0 |
 | Scale text appropriately                                  |TODO    |Mobile  |     |
 | Allow edits to existing events                            |TODO    |Mobile  |     |
 | Allow creating new events                                 |TODO    |Mobile  |     |
@@ -46,6 +44,8 @@
 | Coordinate class                                          |TODO    |Code    | 1.0 |
 | Renderable object class                                   |TODO    |Code    | 2.0 |
 | View class (methods for coord <-> date,time)              |TODO    |Code    | 2.0 |
+| Zoom in/out hot keys                                      |DONE    |        |     |
+| Allow for having origin date be any day of week           |DONE    |        | 2.0 |
 | Use resize cursors when hovering over top and bottom      |DONE    |        | 0.5 |
 | Can select events that are obscured by days of week       |DONE    |Bug     | 0.2 |
 | Handle overlapping events                                 |DONE    |        |     |

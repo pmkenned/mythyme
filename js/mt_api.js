@@ -11,7 +11,7 @@ class MyThymeAPI {
             console.log(data);
         }).fail(function(jqXHR, textStatus, errorThrown) {
             console.error(jqXHR.responseJSON);
-            reloadIfLoggedOut(jqXHR);
+            MyThymeAPI._reloadIfLoggedOut(jqXHR);
             MyThymeAPI.getEvents();
         });
     }
@@ -33,7 +33,7 @@ class MyThymeAPI {
             draw();
         }).fail(function(jqXHR, textStatus, errorThrown) {
             console.error(jqXHR.responseJSON);
-            reloadIfLoggedOut(jqXHR);
+            MyThymeAPI._reloadIfLoggedOut(jqXHR);
             MyThymeAPI.getEvents();
         });
     }
@@ -63,7 +63,7 @@ class MyThymeAPI {
             draw();
         }).fail(function(jqXHR, textStatus, errorThrown) {
             console.error(jqXHR.responseJSON);
-            reloadIfLoggedOut(jqXHR);
+            MyThymeAPI._reloadIfLoggedOut(jqXHR);
         });
     }
 
@@ -88,7 +88,7 @@ class MyThymeAPI {
             draw();
         }).fail(function(jqXHR, textStatus, errorThrown) {
             console.error(jqXHR.responseJSON);
-            reloadIfLoggedOut(jqXHR);
+            MyThymeAPI._reloadIfLoggedOut(jqXHR);
             MyThymeAPI.getEvents();
         });
     }
@@ -104,7 +104,7 @@ class MyThymeAPI {
             draw();
         }).fail(function(jqXHR, textStatus, errorThrown) {
             console.error(jqXHR.responseJSON);
-            reloadIfLoggedOut(jqXHR);
+            MyThymeAPI._reloadIfLoggedOut(jqXHR);
             MyThymeAPI.getEvents();
         });
     }
