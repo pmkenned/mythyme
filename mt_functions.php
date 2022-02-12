@@ -22,7 +22,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         returnJsonHttpResponse(400, "ERROR: 'func' parameter not set");
     }
     $func = $_POST['func'];
-    $table = ($_POST['test']) ? 'test_events' : $_SESSION['username'] . '_events';
+    $table = isset($_POST['test']) ? 'test_events' : $_SESSION['username'] . '_events';
 
     switch($func) {
     # TODO: remove references to this
@@ -83,7 +83,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         returnJsonHttpResponse(400, "ERROR: 'func' parameter not set");
     }
     $func = $_GET['func'];
-    $table = ($_GET['test']) ? 'test_events' : $_SESSION['username'] . '_events';
+    $table = isset($_GET['test']) ? 'test_events' : $_SESSION['username'] . '_events';
 
     switch($func) {
     case 'checkForUpdates':
